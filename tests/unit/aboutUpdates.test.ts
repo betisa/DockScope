@@ -26,7 +26,7 @@ describe('About / Updates / Release Channel', () => {
     expect(packageJson).toContain('"generateUpdatesFilesForAllChannels": true')
     expect(packageJson).toContain('"release:github:win"')
     expect(updateConfig).toContain("provider: 'github'")
-    expect(updateConfig).toContain("owner: 'mohikan1986'")
+    expect(updateConfig).toContain("owner: 'betisa'")
     expect(updateConfig).toContain("repo: 'DockScope'")
     expect(updateConfig).toContain("target: ['nsis']")
   })

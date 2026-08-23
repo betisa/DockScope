@@ -22,7 +22,7 @@ electron-builder.github.cjs
 Provider:
 
 ```text
-github.com/mohikan1986/DockScope
+github.com/betisa/DockScope
 ```
 
 `electron-builder` generates the internal `resources/app-update.yml` plus channel metadata. Runtime code does not call `setFeedURL`.

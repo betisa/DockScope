@@ -11,7 +11,7 @@ module.exports = {
   publish: [
     {
       provider: 'github',
-      owner: 'mohikan1986',
+      owner: 'betisa',
       repo: 'DockScope',
       channel,
       releaseType: channel === 'beta' ? 'prerelease' : 'release',

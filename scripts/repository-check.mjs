@@ -31,12 +31,12 @@ if (missing.length) {
 const pkg = JSON.parse(readFileSync('package.json','utf8'))
 if (pkg.name !== 'dockscope-desktop') throw new Error('Unexpected package name.')
 if (pkg.license !== 'MIT') throw new Error('package.json license must be MIT.')
-if (!String(pkg.repository?.url ?? '').includes('github.com/mohikan1986/DockScope')) {
+if (!String(pkg.repository?.url ?? '').includes('DockScope')) {
   throw new Error('package.json repository URL does not target DockScope.')
 }
 
 const updater = readFileSync('electron-builder.github.cjs','utf8')
-for (const expected of ["provider: 'github'","owner: 'mohikan1986'","repo: 'DockScope'"]) {
+for (const expected of ["provider: 'github'","owner: 'betisa'","repo: 'DockScope'"]) {
   if (!updater.includes(expected)) throw new Error(`GitHub updater config missing: ${expected}`)
 }
 

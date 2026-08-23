@@ -3,7 +3,7 @@
 Target repository:
 
 ```text
-https://github.com/mohikan1986/DockScope
+https://github.com/betisa/DockScope
 ```
 
 ## 1. Create repository
@@ -26,7 +26,7 @@ Recommended:
 From the prepared working tree:
 
 ```bash
-git remote add origin https://github.com/mohikan1986/DockScope.git
+git remote add origin https://github.com/betisa/DockScope.git
 git push -u origin main
 git push -u origin develop
 ```
