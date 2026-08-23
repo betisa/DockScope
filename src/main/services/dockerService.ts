@@ -37,7 +37,8 @@ import type {
   BuildDiagnostics,
   BuildCacheRecord,
   ImageHistoryLayer,
-  ImageInsight
+  ImageInsight,
+  HealthLogEntry
 } from '../../shared/contracts'
 
 function parseJsonLines<T>(raw: string): T[] {
@@ -1214,7 +1215,7 @@ export const dockerService = {
     }
 
     if (diagnostics.health.status === 'unhealthy') {
-      const healthEvidence = diagnostics.health.logs.slice(-3).map(item => `Health exit ${item.exitCode}: ${item.output.trim() || 'no output'}`)
+      const healthEvidence = diagnostics.health.logs.slice(-3).map((item: HealthLogEntry) => `Health exit ${item.exitCode}: ${item.output.trim() || 'no output'}`)
       add({
         id: 'unhealthy', severity: 'critical', category: 'health',
         symptom: 'Docker reports the container as unhealthy.',
@@ -1225,7 +1226,7 @@ export const dockerService = {
     }
 
     if (diagnostics.health.configured && diagnostics.health.status === 'unknown') {
-      const healthEvidence = diagnostics.health.logs.slice(-3).map(item => `Health exit ${item.exitCode}: ${redactDiagnosticEvidence(item.output.trim() || 'no output')}`)
+      const healthEvidence = diagnostics.health.logs.slice(-3).map((item: HealthLogEntry) => `Health exit ${item.exitCode}: ${redactDiagnosticEvidence(item.output.trim() || 'no output')}`)
       add({
         id: 'health-unavailable', severity: 'warning', category: 'health',
         symptom: 'The configured container health check cannot currently be evaluated.',

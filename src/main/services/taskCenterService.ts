@@ -5,7 +5,8 @@ import type {
   OperationTask,
   OperationTaskRequest,
   OperationTaskSummary,
-  ComposeProject
+  ComposeProject,
+  SmartCleanupStepKey
 } from '../../shared/contracts'
 import { resolveCommand } from './processRunner'
 import { windowsStorageService } from './windowsStorageService'
@@ -345,16 +346,14 @@ class TaskCenterService extends EventEmitter {
   private async runSmartCleanup(task: OperationTask, steps: NonNullable<OperationTaskRequest['cleanupSteps']>) {
     this.begin(task)
 
-    const commandMap: Record<string, string[]> = {
+    const commandMap: Record<SmartCleanupStepKey, string[]> = {
       'build-cache': ['builder', 'prune', '--force'],
       'dangling-images': ['image', 'prune', '--force'],
       'stopped-containers': ['container', 'prune', '--force'],
       'unused-networks': ['network', 'prune', '--force'],
       'unused-images': ['image', 'prune', '--all', '--force']
     }
-    const commands = steps
-      .map(step => ({ step, args: commandMap[step] }))
-      .filter((entry): entry is { step: string; args: string[] } => Array.isArray(entry.args))
+    const commands = steps.map(step => ({ step, args: commandMap[step] }))
 
     if (!commands.length) {
       this.finish(task, 'failed', -1, 'Smart Cleanup plan contains no executable steps.')
