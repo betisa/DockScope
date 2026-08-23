@@ -1,10 +1,22 @@
 import { spawn } from 'node:child_process'
 import type { CommandResult } from '../../shared/contracts'
 
-export function resolveCommand(command: string, args: string[]) {
+export type ResolvedCommand = {
+  command: string
+  args: string[]
+  env?: NodeJS.ProcessEnv
+}
+
+export function resolveCommand(command: string, args: string[]): ResolvedCommand {
   const mockScript = process.env.DSM_DOCKER_MOCK_SCRIPT
   if (command === 'docker' && mockScript) {
-    return { command: process.execPath, args: [mockScript, ...args] }
+    return {
+      command: process.execPath,
+      args: [mockScript, ...args],
+      // In Electron E2E, process.execPath is electron.exe rather than node.exe.
+      // ELECTRON_RUN_AS_NODE makes the same executable run the mock CLI as a Node script.
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
+    }
   }
 
   const configuredDocker = process.env.DSM_DOCKER_CLI
@@ -23,7 +35,8 @@ export function run(
     const resolved = resolveCommand(command, args)
     const child = spawn(resolved.command, resolved.args, {
       windowsHide: true,
-      shell: false
+      shell: false,
+      env: resolved.env ?? process.env
     })
 
     let stdout = ''

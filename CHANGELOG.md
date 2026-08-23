@@ -31,6 +31,7 @@ All notable changes to DockScope Desktop are documented here.
 - M12 GA release documentation.
 
 ### Fixed
+- Electron E2E reliability: run the mock Docker CLI with `ELECTRON_RUN_AS_NODE=1` when `process.execPath` is Electron, propagate the resolved environment to Task Center commands, and label the actual `<nav>` landmark as Primary navigation.
 - Release verification typecheck: fixed strict typings for health-log evidence, Docker stream child processes, Smart Cleanup commands, Task Center IPC events, VHDX discovery, and renderer graphic asset imports.
 - Volume Intelligence card-header spacing: restored horizontal padding for compact card headers, aligned badges/actions, and added tighter responsive/nested workload spacing without changing the global compact section rule.
 - Dashboard compact navigation & Container Diagnostics fix: replaced long widget links with icon actions/tooltips, shortened Quick Actions, expanded problem-container detection, and made Dashboard → Container Advisor deep-links deterministic.

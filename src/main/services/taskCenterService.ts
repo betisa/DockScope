@@ -317,7 +317,7 @@ class TaskCenterService extends EventEmitter {
   private async runCommand(task: OperationTask, command: string, args: string[]) {
     this.begin(task)
     const resolved = resolveCommand(command, args)
-    const child = spawn(resolved.command, resolved.args, { windowsHide: true, shell: false })
+    const child = spawn(resolved.command, resolved.args, { windowsHide: true, shell: false, env: resolved.env ?? process.env })
     const active = this.active.get(task.id)
     if (active) active.process = child
 
@@ -421,7 +421,7 @@ class TaskCenterService extends EventEmitter {
   private runOne(task: OperationTask, command: string, args: string[]) {
     return new Promise<{ exitCode: number; cancelled: boolean }>(resolve => {
       const resolved = resolveCommand(command, args)
-      const child = spawn(resolved.command, resolved.args, { windowsHide: true, shell: false })
+      const child = spawn(resolved.command, resolved.args, { windowsHide: true, shell: false, env: resolved.env ?? process.env })
       const active = this.active.get(task.id)
       if (active) active.process = child
 
