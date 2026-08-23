@@ -4,11 +4,13 @@ import { describe, expect, it } from 'vitest'
 describe('Sidebar identity and Build History', () => {
   const app = readFileSync('src/renderer/src/App.tsx', 'utf8')
   const buildkit = readFileSync('src/renderer/src/pages/BuildKitPage.tsx', 'utf8')
+  const navigation = readFileSync('src/renderer/src/navigation.ts', 'utf8')
   const service = readFileSync('src/main/services/dockerService.ts', 'utf8')
 
   it('renders Settings only once in the sidebar navigation', () => {
-    const matches = app.match(/label: 'Settings'/g) ?? []
+    const matches = navigation.match(/label: 'Settings'/g) ?? []
     expect(matches).toHaveLength(1)
+    expect(app).toContain('NAV_ITEMS.map')
     expect(app).not.toContain('<div className="sidebar-footer">')
   })
 

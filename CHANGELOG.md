@@ -89,3 +89,6 @@ All notable changes to DockScope Desktop are documented here.
 
 ### Changed
 - DockScope rebrand: product/package/app identity, installer/tray/About/sidebar/title and graphic assets now use the supplied DockScope brand sheet; legacy local database migration is included.
+
+### Fixed
+- Release verification regression suite: aligned stale source-contract tests with the current GitHub updater, unified AI Diagnostics settings, canonical container file paths, current page inventory/navigation metadata, Smart Cleanup/Task Center formatting, and the unified paginated Images workspace.

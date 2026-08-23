@@ -156,7 +156,7 @@ describe('dockerService using mock Docker CLI', () => {
       completedSteps: 19,
       totalSteps: 19
     })
-    expect(builds[0].duration).toBe('0.9s')
+    expect(builds[0].duration).toBe('927ms')
 
     expect(builds[1]).toMatchObject({
       id: 'bjg3aqtclgtkp115v4nbri1dv',

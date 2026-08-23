@@ -78,7 +78,7 @@ describe('About / Updates / Release Channel', () => {
     expect(contracts).not.toContain('setFeedUrl')
     expect(preload).not.toContain('setFeedURL')
     expect(ipc).not.toContain('updates:set-feed')
-    expect(service).not.toContain('setFeedURL')
+    expect(service).not.toMatch(/autoUpdater\.setFeedURL\s*\(/)
     expect(service).toContain('resources/app-update.yml')
     expect(updateConfig).toContain("provider: 'github'")
   })

@@ -35,8 +35,8 @@ describe('in-page contextual guides', () => {
 
   it('includes safety guidance for destructive areas', () => {
     expect(guides).toContain("Recovery metadata is not a backup.")
-    expect(guides).toContain("Persistent volumes are high risk")
-    expect(guides).toContain("VHDX compaction is disruptive.")
-    expect(guides).toContain("Safe Cleanup never includes volume prune.")
+    expect(guides).toContain('Volumes are never automatically included in a Smart Cleanup plan.')
+    expect(guides).toContain('VHDX compaction is therefore a separate, disruptive operation after Docker cleanup.')
+    expect(guides).toContain('Safe Cleanup still excludes volumes.')
   })
 })

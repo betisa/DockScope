@@ -36,7 +36,7 @@ describe('BuildKit AI Error Analysis', () => {
   })
   it('adds provider settings and test connection',()=>{
     expect(settings).toContain("label:'AI Provider'")
-    expect(settings).toContain('Enable AI Error Analysis')
+    expect(settings).toContain('Enable AI Diagnostics')
     expect(settings).toContain('Test connection')
     expect(ipc).toContain("ipcMain.handle('ai:test-connection'")
   })

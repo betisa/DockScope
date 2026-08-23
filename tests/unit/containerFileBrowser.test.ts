@@ -65,8 +65,8 @@ describe('Container File Browser', () => {
   })
 
   it('blocks writes to read-only mounts and escalates persistent mount audit severity', () => {
-    expect(ipc).toContain("throw new Error('Upload is blocked because the selected destination is inside a read-only mount.')")
-    expect(ipc).toContain("throw new Error('Text save is blocked because the selected file is inside a read-only mount.')")
+    expect(ipc).toContain("throw new Error('Upload is blocked because the resolved destination is inside a read-only mount.')")
+    expect(ipc).toContain("throw new Error('Text save is blocked because the resolved file is inside a read-only mount.')")
     expect(ipc).toContain("severity:risk.persistent ? 'critical' : 'warning'")
   })
 

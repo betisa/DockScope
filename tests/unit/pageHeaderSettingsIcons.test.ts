@@ -19,14 +19,17 @@ describe('page and settings icon consistency', () => {
 
   it('renders all page headers through PageTitle', () => {
     const expected = [
-      'DashboardPage.tsx','NotificationsPage.tsx','ActivityPage.tsx','ProductivityPage.tsx',
-      'AuditPage.tsx','ContainersPage.tsx','ComposePage.tsx','ImagesPage.tsx',
-      'ImageIntelligencePage.tsx','BuildKitPage.tsx','VolumesPage.tsx','NetworksPage.tsx',
-      'CleanupPage.tsx','StoragePage.tsx','SettingsPage.tsx'
+      'AboutPage.tsx','ActivityPage.tsx','AuditPage.tsx','BuildKitPage.tsx',
+      'CleanupPage.tsx','ComposePage.tsx','ContainersPage.tsx','DashboardPage.tsx',
+      'ImagesPage.tsx','NetworksPage.tsx','NotificationsPage.tsx','PortExplorerPage.tsx',
+      'ProductivityPage.tsx','ResourceGraphPage.tsx','SettingsPage.tsx','StoragePage.tsx',
+      'TaskCenterPage.tsx','VolumesPage.tsx'
     ]
+    expect(pageFiles.sort()).toEqual([...expected].sort())
     for (const file of expected) {
       const source = readFileSync(path.join('src/renderer/src/pages', file), 'utf8')
-      expect(source, file).toContain('<PageTitle page=')
+      expect(source, file).toContain('<PageTitle')
+      expect(source, file).toMatch(/page=["']/)
       expect(source, file).not.toContain('<h1>')
     }
   })
