@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 describe('M12 UX fixes', () => {
   const app = readFileSync('src/renderer/src/App.tsx', 'utf8')
+  const navigation = readFileSync('src/renderer/src/navigation.ts', 'utf8')
   const styles = readFileSync('src/renderer/src/styles.css', 'utf8')
   const contracts = readFileSync('src/shared/contracts.ts', 'utf8')
   const volumeService = readFileSync('src/main/services/dockerService.ts', 'utf8')
@@ -15,11 +16,12 @@ describe('M12 UX fixes', () => {
   })
 
   it('uses resource-specific Hugeicons in sidebar resources', () => {
-    expect(app).toContain('ContainerIcon')
-    expect(app).toContain('Image01Icon')
-    expect(app).toContain('Database01Icon')
-    expect(app).toContain('Globe02Icon')
-    expect(app).toContain('Layers01Icon')
+    expect(app).toContain("import { NAV_ITEMS } from './navigation'")
+    expect(navigation).toContain('ContainerIcon')
+    expect(navigation).toContain('Image01Icon')
+    expect(navigation).toContain('Database01Icon')
+    expect(navigation).toContain('Globe02Icon')
+    expect(navigation).toContain('Layers01Icon')
   })
 
   it('exposes volume created time and disk size', () => {

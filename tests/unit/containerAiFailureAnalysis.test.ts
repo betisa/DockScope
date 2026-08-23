@@ -54,7 +54,7 @@ describe('Container AI Failure Analysis', () => {
   it('offers AI only in problem states and keeps local findings',()=>{
     expect(panel).toContain('const aiEligible = Boolean(result && (')
     expect(panel).toContain('Analyze failure with AI')
-    expect(panel).toContain('Local deterministic') || expect(panel).toContain('advisor-findings')
+    expect(panel).toContain('advisor-findings')
     expect(panel).toContain('ContainerAiResult')
   })
 

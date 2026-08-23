@@ -89,6 +89,6 @@ describe('P13.07 Diagnostics Bundle Export', () => {
     expect(auditPage).toContain('Best-effort redaction')
     expect(auditPage).toContain('collector failures')
     expect(guide).toContain('Diagnostics Bundle Export')
-    expect(guide).toContain('Review the ZIP before sending it outside a trusted support channel.')
+    expect(guide).toContain('review the ZIP before sending it outside a trusted support channel.')
   })
 })

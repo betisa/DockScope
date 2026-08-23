@@ -69,7 +69,7 @@ describe('P13.06 Operation Task Center', () => {
     expect(compose).toContain("kind:'compose-up'")
     expect(buildkit).toContain("kind:'buildkit-prune'")
     expect(cleanup).toContain("kind: 'smart-cleanup'")
-    expect(storage).toContain("kind:'vhdx-compact'")
+    expect(storage).toMatch(/kind:\s*'vhdx-compact'/)
   })
 
   it('registers Task Center as an Overview page', () => {
