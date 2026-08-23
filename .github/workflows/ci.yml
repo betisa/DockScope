@@ -1,13 +1,22 @@
-name: Windows Release Readiness
+name: Windows CI
 
 on:
+  pull_request:
+    branches: [main, develop]
   push:
     branches: [main, develop]
-  pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test-build-package:
+  verify:
+    name: verify
     runs-on: windows-latest
     timeout-minutes: 45
 
@@ -17,9 +26,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: package.json
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+
+      - name: Repository policy
+        run: npm run repo:check
 
       - name: Typecheck
         run: npm run typecheck
@@ -36,12 +50,6 @@ jobs:
       - name: Electron smoke tests
         run: npm run test:e2e
 
-      - name: Package Windows installer and portable build
-        if: github.event_name != 'pull_request'
-        run: npm run package:win
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
-
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
@@ -57,11 +65,3 @@ jobs:
           name: playwright-report
           path: playwright-report
           if-no-files-found: ignore
-
-      - name: Upload Windows packages
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: dockscope-windows
-          path: dist/*
-          if-no-files-found: error

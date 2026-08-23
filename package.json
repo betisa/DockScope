@@ -23,7 +23,10 @@
     "ga:verify": "npm run release:verify && npm run ga:budget && npm run test:e2e",
     "ga:package": "npm run ga:verify && npm run package:win",
     "ga:budget": "node scripts/ga-budget.mjs",
-    "package:update:win": "npm run build && electron-builder --config electron-builder.update.cjs --win nsis --publish never"
+    "package:update:win": "npm run build && electron-builder --config electron-builder.update.cjs --win nsis --publish never",
+    "repo:check": "node scripts/repository-check.mjs",
+    "commit:check": "node scripts/validate-commit-message.mjs",
+    "git:setup": "git config core.hooksPath .githooks"
   },
   "dependencies": {
     "@hugeicons/core-free-icons": "4.2.3",
@@ -113,5 +116,13 @@
       }
     ],
     "generateUpdatesFilesForAllChannels": true
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mohikan1986/DockScope.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mohikan1986/DockScope/issues"
+  },
+  "homepage": "https://github.com/mohikan1986/DockScope#readme"
 }

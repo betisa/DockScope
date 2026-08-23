@@ -1,0 +1,70 @@
+name: Release DockScope
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dockscope-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-windows:
+    name: publish-windows
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package.json
+
+      - name: Validate tag and derive channel
+        id: release
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $tag = "${{ github.ref_name }}"
+          $expected = "v$($pkg.version)"
+          if ($tag -ne $expected) {
+            throw "Tag $tag does not match package.json version $expected"
+          }
+
+          $channel = if ($pkg.version -match '-(beta|preview)([.-]|$)') { 'beta' } else { 'latest' }
+          "channel=$channel" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Release channel: $channel"
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Repository policy
+        run: npm run repo:check
+
+      - name: Release verification
+        run: npm run release:verify
+
+      - name: Publish NSIS + update metadata to GitHub Releases
+        run: npm run release:github:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCKSCOPE_RELEASE_CHANNEL: ${{ steps.release.outputs.channel }}
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+
+      - name: Upload release build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dockscope-${{ github.ref_name }}-windows
+          path: dist/*
+          if-no-files-found: warn

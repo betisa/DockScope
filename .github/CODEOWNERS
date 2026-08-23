@@ -1,0 +1,9 @@
+# Default owner
+* @mohikan1986
+
+# Privilege boundary / security-sensitive code
+/src/main/ @mohikan1986
+/src/preload/ @mohikan1986
+/electron-builder*.cjs @mohikan1986
+/.github/workflows/ @mohikan1986
+/SECURITY.md @mohikan1986
