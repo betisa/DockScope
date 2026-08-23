@@ -13,6 +13,9 @@
   <img alt="React 19" src="https://img.shields.io/badge/React-19-149ECA?style=flat-square&logo=react&logoColor=white">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white">
   <img alt="License MIT" src="https://img.shields.io/badge/license-MIT-22C55E?style=flat-square">
+  <a href="https://github.com/mohikan1986/DockScope/actions/workflows/ci.yml"><img alt="Windows CI" src="https://img.shields.io/github/actions/workflow/status/mohikan1986/DockScope/ci.yml?branch=main&style=flat-square&label=Windows%20CI"></a>
+  <a href="https://github.com/mohikan1986/DockScope/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/mohikan1986/DockScope?include_prereleases&style=flat-square"></a>
+  <a href="https://github.com/mohikan1986/DockScope/issues"><img alt="GitHub Issues" src="https://img.shields.io/github/issues/mohikan1986/DockScope?style=flat-square"></a>
 </p>
 
 <p align="center">
@@ -30,6 +33,10 @@
   <a href="./docs/GA-RELEASE-CHECKLIST.md">GA Checklist</a>
   ·
   <a href="./CHANGELOG.md">Changelog</a>
+  ·
+  <a href="./CONTRIBUTING.md">Contributing</a>
+  ·
+  <a href="./SECURITY.md">Security Policy</a>
 </p>
 
 ---
@@ -261,7 +268,7 @@ The editor avoids silent overwrite:
 
 ## Build Diagnostics Workspace
 
-Build History is now actionable: select **Diagnostics** on any Buildx record to open an inline workspace with **Overview, Logs, Steps, Cache, Timing, and Error Analysis**. The workspace uses real `docker buildx history inspect/logs` data and can open the selected record in Docker Desktop. Error Analysis is rule-based and only reports causes when matching evidence exists in the actual build logs.
+Build History is now actionable: select **Diagnostics** on any Buildx record to open a modal with **Overview, Logs, Steps, Cache, Timing, and Error Analysis**. The workspace uses real `docker buildx history inspect/logs` data and can open the selected record in Docker Desktop. Error Analysis is rule-based and only reports causes when matching evidence exists in the actual build logs.
 
 ## BuildKit and Image Intelligence
 
@@ -464,6 +471,49 @@ Audit history can be exported as JSON.
 No profile enables automatic persistent-volume deletion.
 
 ---
+
+## Contributing & development workflow
+
+DockScope uses **Conventional Commits** and a lightweight **Git Flow**:
+
+```text
+feature/* ─┐
+fix/* ─────┼─> develop ─> release/* ─> main ─> vX.Y.Z
+docs/* ────┘                         ↑
+                               hotfix/*
+```
+
+Start here:
+
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** — development, PR and testing rules
+- **[Git Workflow](./docs/GIT-WORKFLOW.md)** — branches, commits, release/hotfix flow
+- **[Release Process](./docs/RELEASE-PROCESS.md)** — Stable/Preview releases and updater
+- **[GitHub Setup](./docs/GITHUB-SETUP.md)** — repository rulesets, Actions and secrets
+- **[Security Policy](./SECURITY.md)** — responsible vulnerability reporting
+
+Enable the local Conventional Commit hook after cloning:
+
+```powershell
+npm run git:setup
+```
+
+## GitHub Releases & automatic updates
+
+Installed NSIS builds update directly from **GitHub Releases**. Stable maps to the `latest` channel; Preview maps to `beta`. Release assets and updater metadata are created by GitHub Actions from version tags.
+
+Stable:
+
+```text
+1.2.0 → v1.2.0 → GitHub Release → latest
+```
+
+Preview:
+
+```text
+1.3.0-beta.1 → v1.3.0-beta.1 → GitHub Prerelease → beta
+```
+
+The application does not accept an arbitrary updater URL from the Renderer. The GitHub provider is embedded by `electron-builder` into the packaged app.
 
 ## Security architecture
 
