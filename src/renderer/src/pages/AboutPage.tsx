@@ -173,10 +173,9 @@ export function AboutPage() {
               <UpdateMetric label="Channel" value={update.channel === 'preview' ? 'Preview / beta' : 'Stable / latest'} />
             </div>
 
-            {!update.updateBaseUrlConfigured && (
-              <InlineAlert tone="warning" title="Update source is not configured">
-                Configure `DSM_UPDATE_BASE_URL` or `build/update-config.json` before producing the release build.
-                The About/runtime information remains available, but update check/download/install stays disabled.
+            {!update.packaged && (
+              <InlineAlert tone="info" title="GitHub Releases updater">
+                Packaged NSIS builds read the GitHub update provider embedded by electron-builder. Development builds intentionally do not check GitHub Releases.
               </InlineAlert>
             )}
 
@@ -188,7 +187,7 @@ export function AboutPage() {
 
             {!update.packaged && (
               <InlineAlert tone="info" title="Development build">
-                Auto-update is intentionally disabled during development. Package the NSIS application to test the real update flow.
+                Auto-update is intentionally disabled during development. Test updates with an installed NSIS release built from GitHub Actions.
               </InlineAlert>
             )}
 

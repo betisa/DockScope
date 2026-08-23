@@ -14,11 +14,6 @@ import { dockerService } from './dockerService'
 
 const { autoUpdater } = electronUpdater
 
-type UpdateConfig = {
-  baseUrl: string
-  releasePageUrl: string
-}
-
 const DEFAULT_NOTES: ReleaseNotesDocument = {
   version: '1.0.0',
   date: '2026-08-22',
@@ -57,7 +52,6 @@ function notesToText(value: unknown) {
 
 export class UpdateService extends EventEmitter {
   private initialized = false
-  private config: UpdateConfig = { baseUrl:'', releasePageUrl:'' }
   private channel: ReleaseChannel = 'stable'
   private state: UpdateState = {
     status:'idle',
@@ -83,74 +77,48 @@ export class UpdateService extends EventEmitter {
   async initialize() {
     if (this.initialized) return this.getState()
     await databaseService.initialize()
-    this.config = await this.loadConfig()
+
     this.channel = normalizeChannel(
       await databaseService.getState<ReleaseChannel>('application.releaseChannel')
     )
     await databaseService.setState('application.releaseChannel', this.channel)
 
     const portable = Boolean(process.env.PORTABLE_EXECUTABLE_DIR || process.env.PORTABLE_EXECUTABLE_FILE)
-    const configured = Boolean(this.config.baseUrl)
-    const supported = app.isPackaged && !portable && configured
+    const supported = app.isPackaged && !portable
+
+    this.configureUpdater()
+    this.bindUpdaterEvents()
 
     this.state = {
       ...this.state,
-      status: supported ? 'idle' : 'unsupported',
+      status:supported ? 'idle' : 'unsupported',
       channel:this.channel,
       currentVersion:app.getVersion(),
-      updateBaseUrlConfigured:configured,
+      // Kept for contract compatibility: true means the packaged GitHub update provider is embedded.
+      updateBaseUrlConfigured:app.isPackaged,
       canCheck:supported,
       canDownload:false,
       canInstall:false,
       portable,
       packaged:app.isPackaged,
-      error: !app.isPackaged
+      error:!app.isPackaged
         ? 'Auto-update is available only in packaged builds.'
         : portable
-          ? 'Portable builds cannot self-update. Install the NSIS build to enable update download/install.'
-          : !configured
-            ? 'Update source is not configured. Set DSM_UPDATE_BASE_URL or build/update-config.json before release.'
-            : ''
+          ? 'Portable builds cannot self-update. Install the NSIS build to enable GitHub Release updates.'
+          : ''
     }
 
-    if (configured) this.configureUpdater()
-    this.bindUpdaterEvents()
     this.initialized = true
     return this.getState()
   }
 
-  private async loadConfig(): Promise<UpdateConfig> {
-    const envUrl = String(process.env.DSM_UPDATE_BASE_URL ?? '').trim().replace(/\/+$/, '')
-    const envRelease = String(process.env.DSM_RELEASE_PAGE_URL ?? '').trim()
-    let fileConfig: Partial<UpdateConfig> = {}
-
-    const configPath = app.isPackaged
-      ? path.join(process.resourcesPath, 'update-config.json')
-      : path.join(app.getAppPath(), 'build', 'update-config.json')
-
-    try {
-      fileConfig = JSON.parse(await fs.readFile(configPath,'utf8'))
-    } catch {
-      fileConfig = {}
-    }
-
-    const baseUrl = (envUrl || String(fileConfig.baseUrl ?? '').trim()).replace(/\/+$/, '')
-    return {
-      baseUrl,
-      releasePageUrl: envRelease || String(fileConfig.releasePageUrl ?? '').trim()
-    }
-  }
-
   private configureUpdater() {
+    // electron-builder writes resources/app-update.yml with the GitHub provider.
+    // Do not call setFeedURL here; only the release channel is user-selectable.
     autoUpdater.autoDownload = false
     autoUpdater.autoInstallOnAppQuit = true
     autoUpdater.allowPrerelease = this.channel === 'preview'
     autoUpdater.channel = updaterChannel(this.channel)
-    autoUpdater.setFeedURL({
-      provider:'generic',
-      url:this.config.baseUrl,
-      channel:updaterChannel(this.channel)
-    } as any)
   }
 
   private bindUpdaterEvents() {
@@ -234,15 +202,11 @@ export class UpdateService extends EventEmitter {
     await this.initialize()
     this.channel = normalizeChannel(channel)
     await databaseService.setState('application.releaseChannel', this.channel)
+    this.configureUpdater()
 
-    if (this.config.baseUrl) {
-      autoUpdater.allowPrerelease = this.channel === 'preview'
-      autoUpdater.channel = updaterChannel(this.channel)
-      this.configureUpdater()
-    }
-
+    const supported = app.isPackaged && !this.state.portable
     this.patch({
-      status:this.state.canCheck || (app.isPackaged && !this.state.portable && this.config.baseUrl) ? 'idle' : 'unsupported',
+      status:supported ? 'idle' : 'unsupported',
       availableVersion:'',
       releaseName:'',
       releaseDate:'',
@@ -251,10 +215,10 @@ export class UpdateService extends EventEmitter {
       transferred:0,
       total:0,
       bytesPerSecond:0,
-      canCheck:app.isPackaged && !this.state.portable && Boolean(this.config.baseUrl),
+      canCheck:supported,
       canDownload:false,
       canInstall:false,
-      error: app.isPackaged && !this.state.portable && this.config.baseUrl ? '' : this.state.error
+      error:supported ? '' : this.state.error
     })
     return this.getState()
   }

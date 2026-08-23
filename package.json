@@ -23,10 +23,10 @@
     "ga:verify": "npm run release:verify && npm run ga:budget && npm run test:e2e",
     "ga:package": "npm run ga:verify && npm run package:win",
     "ga:budget": "node scripts/ga-budget.mjs",
-    "package:update:win": "npm run build && electron-builder --config electron-builder.update.cjs --win nsis --publish never",
     "repo:check": "node scripts/repository-check.mjs",
     "commit:check": "node scripts/validate-commit-message.mjs",
-    "git:setup": "git config core.hooksPath .githooks"
+    "git:setup": "git config core.hooksPath .githooks",
+    "release:github:win": "npm run release:verify && npm run build && electron-builder --config electron-builder.github.cjs --win nsis --publish always"
   },
   "dependencies": {
     "@hugeicons/core-free-icons": "4.2.3",
@@ -109,10 +109,6 @@
       {
         "from": "build/release-notes.json",
         "to": "release-notes.json"
-      },
-      {
-        "from": "build/update-config.json",
-        "to": "update-config.json"
       }
     ],
     "generateUpdatesFilesForAllChannels": true

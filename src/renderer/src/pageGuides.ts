@@ -905,8 +905,8 @@ export const PAGE_GUIDES: Record<PageId, PageGuide> = {
         title: 'Release source',
         tone: 'info',
         items: [
-          'Production builds require DSM_UPDATE_BASE_URL or a populated build/update-config.json.',
-          'The release server must publish electron-builder update metadata and matching installer artifacts.',
+          'Production builds use GitHub Releases metadata embedded by electron-builder.',
+          'GitHub Releases must contain the electron-builder update metadata, blockmap, and matching NSIS installer artifacts.',
           'Current release notes are bundled with the application; available-release notes come from updater metadata.'
         ]
       },

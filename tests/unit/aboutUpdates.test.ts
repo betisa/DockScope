@@ -11,7 +11,7 @@ describe('About / Updates / Release Channel', () => {
   const nav = readFileSync('src/renderer/src/navigation.ts','utf8')
   const guide = readFileSync('src/renderer/src/pageGuides.ts','utf8')
   const packageJson = readFileSync('package.json','utf8')
-  const updateConfig = readFileSync('electron-builder.update.cjs','utf8')
+  const updateConfig = readFileSync('electron-builder.github.cjs','utf8')
 
   it('defines typed runtime, release-note and updater contracts', () => {
     expect(contracts).toContain("export type ReleaseChannel = 'stable' | 'preview'")
@@ -24,9 +24,10 @@ describe('About / Updates / Release Channel', () => {
   it('uses current electron-updater dependency and generates update files for channels', () => {
     expect(packageJson).toContain('"electron-updater": "6.8.9"')
     expect(packageJson).toContain('"generateUpdatesFilesForAllChannels": true')
-    expect(packageJson).toContain('"package:update:win"')
-    expect(updateConfig).toContain("provider: 'generic'")
-    expect(updateConfig).toContain("'${env.DSM_UPDATE_BASE_URL}'")
+    expect(packageJson).toContain('"release:github:win"')
+    expect(updateConfig).toContain("provider: 'github'")
+    expect(updateConfig).toContain("owner: 'mohikan1986'")
+    expect(updateConfig).toContain("repo: 'DockScope'")
     expect(updateConfig).toContain("target: ['nsis']")
   })
 
@@ -77,8 +78,9 @@ describe('About / Updates / Release Channel', () => {
     expect(contracts).not.toContain('setFeedUrl')
     expect(preload).not.toContain('setFeedURL')
     expect(ipc).not.toContain('updates:set-feed')
-    expect(service).toContain('DSM_UPDATE_BASE_URL')
-    expect(service).toContain("path.join(process.resourcesPath, 'update-config.json')")
+    expect(service).not.toContain('setFeedURL')
+    expect(service).toContain('resources/app-update.yml')
+    expect(updateConfig).toContain("provider: 'github'")
   })
 
   it('bundles current release notes and displays remote release notes', () => {

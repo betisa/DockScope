@@ -1202,7 +1202,7 @@ Update actions are explicit:
 
 Portable builds do not self-update. Install the Windows NSIS build to use update download/install.
 
-Production update checking requires a configured release feed through `DSM_UPDATE_BASE_URL` or the packaged `update-config.json`.
+Production update checking uses the GitHub Releases provider embedded in packaged NSIS builds.
 
 
 ### AI-assisted Container Failure Analysis
