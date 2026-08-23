@@ -1,0 +1,20 @@
+{
+  "version": "1.0.0",
+  "date": "2026-08-22",
+  "channel": "stable",
+  "title": "DockScope 1.0.0",
+  "highlights": [
+    "Advanced Docker diagnostics for builds, containers, ports, volumes and dependency topology.",
+    "Operation Task Center with guarded long-running operations and persistent SQLite history.",
+    "Diagnostics Bundle Export with redaction and bounded support data.",
+    "Storage Trends and customizable operational Dashboard.",
+    "Target-based Smart Cleanup Planning with persistent Volume exclusion.",
+    "Guarded Container File Browser with browse, text view, download, upload and audited writes.",
+    "Unified SQLite persistence through Knex.js."
+  ],
+  "security": [
+    "Renderer remains sandboxed with nodeIntegration disabled and contextIsolation enabled.",
+    "Privileged Docker, filesystem, database and update operations stay in Electron Main.",
+    "Critical destructive operations continue to require explicit confirmation."
+  ]
+}

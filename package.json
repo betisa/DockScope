@@ -1,0 +1,117 @@
+{
+  "name": "dockscope-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DockScope \u2014 Docker Operations & Intelligence desktop companion",
+  "main": "./out/main/index.js",
+  "author": "DockScope",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit",
+    "package:win": "npm run build && electron-builder --win nsis portable",
+    "postinstall": "electron-builder install-app-deps",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "npm run build && playwright test",
+    "test:all": "npm run typecheck && npm run test && npm run test:e2e",
+    "release:verify": "node scripts/release-verify.mjs",
+    "release:win": "npm run release:verify && npm run package:win",
+    "ga:verify": "npm run release:verify && npm run ga:budget && npm run test:e2e",
+    "ga:package": "npm run ga:verify && npm run package:win",
+    "ga:budget": "node scripts/ga-budget.mjs",
+    "package:update:win": "npm run build && electron-builder --config electron-builder.update.cjs --win nsis --publish never"
+  },
+  "dependencies": {
+    "@hugeicons/core-free-icons": "4.2.3",
+    "@hugeicons/react": "1.1.9",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "@xterm/xterm": "6.0.0",
+    "@xterm/addon-fit": "0.11.0",
+    "node-pty": "1.1.0",
+    "@monaco-editor/react": "4.7.0",
+    "monaco-editor": "0.56.0",
+    "knex": "3.3.0",
+    "better-sqlite3": "13.0.3",
+    "electron-updater": "6.8.9"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron": "43.4.0",
+    "electron-builder": "^26.0.0",
+    "electron-vite": "5.0.0",
+    "typescript": "^5.9.0",
+    "vite": "7.3.6",
+    "vitest": "4.1.10",
+    "@vitest/coverage-v8": "4.1.10",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/jest-dom": "7.0.1",
+    "jsdom": "30.0.1",
+    "@playwright/test": "1.62.1",
+    "playwright": "1.62.1"
+  },
+  "build": {
+    "appId": "com.dockscope.desktop",
+    "productName": "DockScope",
+    "asar": true,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "verifyUpdateCodeSignature": false,
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DockScope"
+    },
+    "asarUnpack": [
+      "node_modules/node-pty/**/*",
+      "node_modules/better-sqlite3/**/*"
+    ],
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "compression": "maximum",
+    "removePackageScripts": true,
+    "extraResources": [
+      {
+        "from": "build/icon-tray.png",
+        "to": "icon-tray.png"
+      },
+      {
+        "from": "build/icon.png",
+        "to": "icon.png"
+      },
+      {
+        "from": "build/release-notes.json",
+        "to": "release-notes.json"
+      },
+      {
+        "from": "build/update-config.json",
+        "to": "update-config.json"
+      }
+    ],
+    "generateUpdatesFilesForAllChannels": true
+  }
+}
