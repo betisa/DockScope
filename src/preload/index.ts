@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { DockerApi } from '../shared/contracts'
+import type { DockerApi, OperationTask } from '../shared/contracts'
 
 function subscribe(channel: string, callback: (value: any) => void) {
   const handler = (_event: Electron.IpcRendererEvent, value: any) => callback(value)
@@ -48,7 +48,7 @@ const api: DockerApi = {
     cancel: (id) => ipcRenderer.invoke('tasks:cancel', id),
     clearCompleted: () => ipcRenderer.invoke('tasks:clear-completed'),
     onChanged: (callback) => {
-      const handler = (_event, task) => callback(task)
+      const handler = (_event: Electron.IpcRendererEvent, task: OperationTask) => callback(task)
       ipcRenderer.on('tasks:changed', handler)
       return () => ipcRenderer.removeListener('tasks:changed', handler)
     }

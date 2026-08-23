@@ -31,6 +31,7 @@ All notable changes to DockScope Desktop are documented here.
 - M12 GA release documentation.
 
 ### Fixed
+- Release verification typecheck: fixed strict typings for health-log evidence, Docker stream child processes, Smart Cleanup commands, Task Center IPC events, VHDX discovery, and renderer graphic asset imports.
 - Volume Intelligence card-header spacing: restored horizontal padding for compact card headers, aligned badges/actions, and added tighter responsive/nested workload spacing without changing the global compact section rule.
 - Dashboard compact navigation & Container Diagnostics fix: replaced long widget links with icon actions/tooltips, shortened Quick Actions, expanded problem-container detection, and made Dashboard → Container Advisor deep-links deterministic.
 - Compose editor permanent loading: source-file loading now has explicit loading/error/ready states, 10-second bounded Main reads, retry UX, ConfigFiles normalization, and descriptive ENOENT/EACCES errors.

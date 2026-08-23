@@ -139,7 +139,9 @@ export function TaskCenterPage({ onNavigate }: { onNavigate: (page: PageId) => v
   const discoverVhdx = async () => {
     try {
       const info = await window.dockerApi.storage.findVhdx()
-      setVhdxPath(info.path)
+      const first = info[0]
+      if (!first) throw new Error('Docker Desktop VHDX was not found.')
+      setVhdxPath(first.path)
     } catch (value) {
       setError(value instanceof Error ? value.message : String(value))
     }

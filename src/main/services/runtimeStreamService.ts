@@ -1,15 +1,18 @@
 import { randomUUID } from 'node:crypto'
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { spawn, type ChildProcessByStdio } from 'node:child_process'
+import type { Readable } from 'node:stream'
 import type { WebContents } from 'electron'
 
+type RuntimeStreamProcess = ChildProcessByStdio<null, Readable, Readable>
+
 interface StreamSession {
-  process: ChildProcessWithoutNullStreams
+  process: RuntimeStreamProcess
   ownerId: number
 }
 
 const sessions = new Map<string, StreamSession>()
 
-function safeKill(child: ChildProcessWithoutNullStreams) {
+function safeKill(child: RuntimeStreamProcess) {
   if (child.killed) return
   try { child.kill() } catch { /* already gone */ }
 }
