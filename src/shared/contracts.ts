@@ -267,6 +267,7 @@ export type ContainerInfo = {
   name: string
   image: string
   state: string
+  startedAt: string
   status: string
   ports: string
   size: string
@@ -466,6 +467,7 @@ export type ComposeServiceInfo = {
   service: string
   image: string
   state: string
+  startedAt: string
   health: string
   exitCode: number
   publishers: ComposePublisher[]
@@ -1115,8 +1117,6 @@ export type DockerApi = {
     notifications(): Promise<OperationalNotification[]>
     markRead(ids: string[]): Promise<void>
     clear(): Promise<void>
-    settings(): Promise<MonitoringSettings>
-    saveSettings(settings: MonitoringSettings): Promise<MonitoringSettings>
     refresh(): Promise<OperationalHealth>
   }
   diagnosticsBundle: {

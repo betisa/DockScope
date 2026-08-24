@@ -44,7 +44,7 @@ export type RecentResource = {
 
 export const PAGE_ITEMS: ProductivityItem[] = [
   ['dashboard','Dashboard','Docker workstation overview','overview home docker'],
-  ['notifications','Notifications','Operational alerts and monitoring','alerts health monitoring'],
+  ['uptime','Uptime Reports','Container and Compose availability history','uptime availability monitoring status history docker compose'],
   ['activity','Activity','Docker daemon event stream','events runtime activity'],
   ['tasks','Task Center','Long-running Docker operation queue','tasks operations queue progress output cancel'],
   ['containers','Containers','Runtime container management','containers runtime logs terminal'],
@@ -87,7 +87,7 @@ export function buildResourceItems(containers: ContainerInfo[], compose: Compose
 export const QUICK_ACTIONS: ProductivityItem[] = [
   { id:'quick:safe-cleanup', kind:'action', title:'Run Safe Cleanup', subtitle:'Prune stopped containers, dangling images, networks and build cache', keywords:'safe cleanup prune reclaim', page:'cleanup', action:'safe-cleanup' },
   { id:'quick:build-cache', kind:'action', title:'Prune Build Cache', subtitle:'Remove unused build cache', keywords:'build cache prune buildkit', page:'buildkit', action:'prune-build-cache' },
-  { id:'quick:monitoring', kind:'action', title:'Refresh Operational Health', subtitle:'Refresh Docker health and alert state now', keywords:'monitoring health notifications refresh', page:'notifications', action:'refresh-monitoring' }
+  { id:'quick:monitoring', kind:'action', title:'Refresh Operational Health', subtitle:'Refresh Docker health and alert state now', keywords:'monitoring health notifications refresh', page:'dashboard', action:'refresh-monitoring' }
 ]
 
 export function fuzzyScore(query: string, item: ProductivityItem): number {

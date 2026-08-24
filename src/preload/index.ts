@@ -135,8 +135,6 @@ const api: DockerApi = {
     notifications: () => ipcRenderer.invoke('monitoring:notifications'),
     markRead: (ids) => ipcRenderer.invoke('monitoring:mark-read', ids),
     clear: () => ipcRenderer.invoke('monitoring:clear'),
-    settings: () => ipcRenderer.invoke('monitoring:settings'),
-    saveSettings: (settings) => ipcRenderer.invoke('monitoring:save-settings', settings),
     refresh: () => ipcRenderer.invoke('monitoring:refresh')
   },
   audit: {

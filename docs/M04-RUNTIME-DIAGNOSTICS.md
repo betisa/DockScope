@@ -16,6 +16,7 @@ Status: Implemented
 - raw inspect viewer
 - real-time Docker Events activity page
 - automatic stream / PTY cleanup when views or windows close
+- container inventory includes Docker-reported start timestamps so running-container uptime can update live in the renderer
 
 ## Safety / architecture
 

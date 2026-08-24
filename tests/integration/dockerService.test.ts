@@ -67,6 +67,18 @@ describe('dockerService using mock Docker CLI', () => {
     const containers = await dockerService.containers()
     expect(containers.map(x => x.name)).toEqual(['api', 'worker'])
     expect(containers[0].state).toBe('running')
+    expect(containers[0].startedAt).toBe('2026-08-21T11:00:00Z')
+  })
+
+  it('parses Compose service runtime start times', async () => {
+    const services = await dockerService.composeServices({
+      name: 'sample',
+      status: 'running(2)',
+      configFiles: 'C:\\repo\\compose.yaml'
+    })
+
+    expect(services.map(x => x.service)).toEqual(['api', 'worker'])
+    expect(services[0].startedAt).toBe('2026-08-21T11:00:00Z')
   })
 
 

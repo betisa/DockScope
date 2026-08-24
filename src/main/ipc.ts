@@ -482,8 +482,6 @@ export function registerIpc() {
   ipcMain.handle('monitoring:notifications', () => operationalIntelligence.listNotifications())
   ipcMain.handle('monitoring:mark-read', (_, ids) => operationalIntelligence.markRead(safeIds(ids)))
   ipcMain.handle('monitoring:clear', () => operationalIntelligence.clear())
-  ipcMain.handle('monitoring:settings', () => operationalIntelligence.getSettings())
-  ipcMain.handle('monitoring:save-settings', (_, settings) => operationalIntelligence.saveSettings(settings))
   ipcMain.handle('monitoring:refresh', () => operationalIntelligence.refresh())
 
   ipcMain.handle('audit:list', () => auditService.list())

@@ -54,6 +54,7 @@ desktop.ini
 *.dockscope.bak
 tmp/
 temp/
+graphify-out/
 
 # Package manager
 npm-debug.log*

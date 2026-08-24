@@ -5,6 +5,11 @@ All notable changes to DockScope Desktop are documented here.
 ## [1.0.0] - 2026-08-21
 
 ### Added
+- Windows CI now runs on version tag pushes (`v*`) instead of direct pushes to `main` or `develop`.
+- Operational Intelligence now opens from a Dashboard icon in a side drawer; duplicate alert-policy controls were removed from the notification view and Settings is the sole policy source.
+- Uptime Reports page inspired by Uptime Kuma: searchable container/Compose monitor list, live status bars, runtime history chart, 24-hour/30-day uptime metrics, and persisted status samples.
+- Independent Runtime Uptime dashboard widget combining live Docker container and Compose service uptime with customizable placement and visibility.
+- Live uptime for running Docker containers and Compose services, backed by Docker runtime start timestamps and refreshed in the renderer.
 - Build History Diagnostics modal: BuildKit Diagnostics now opens in an accessible modal with the existing Overview/Logs/Steps/Cache/Timing/Error Analysis tabs instead of an inline workspace.
 - Unified Images & Image Intelligence: removed the standalone Image Intelligence page and moved analysis into an accessible modal launched from each Images row; Resource Graph and Command Palette image deep-links now open that modal.
 - About / Updates / Release Channel: runtime app/Electron/Node/Chromium/Docker versions, bundled/remote release notes, Stable/Preview channel, explicit update check/download/progress/install and NSIS/Portable safety handling.

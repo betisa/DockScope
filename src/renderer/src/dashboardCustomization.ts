@@ -1,5 +1,6 @@
 export type DashboardWidgetId =
   | 'runtime'
+  | 'uptime'
   | 'storage-chart'
   | 'container-states'
   | 'storage-details'
@@ -27,6 +28,7 @@ export type DashboardWidgetDefinition = {
 
 export const DASHBOARD_WIDGETS: DashboardWidgetDefinition[] = [
   { id:'runtime', label:'Runtime summary', description:'Engine, Docker, Compose and active context.', essential:true },
+  { id:'uptime', label:'Runtime uptime', description:'Live uptime for running Docker containers and Compose services.' },
   { id:'storage-chart', label:'Storage chart', description:'Allocated versus reclaimable Docker storage.' },
   { id:'container-states', label:'Container states', description:'Running, stopped and unhealthy container distribution.' },
   { id:'storage-details', label:'Storage details', description:'Per-category Docker disk usage and reclaimable values.' },

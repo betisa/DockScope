@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ComposeProject, ComposeServiceInfo, ComposeServiceModel, ComposeWorkspaceModel } from '../../../shared/contracts'
+import { formatUptime } from '../../../shared/formatting'
 import { Badge, CodePanel, ConfirmButton, EmptyState, Switch } from './ui'
 import { ComposeLiveLogsPanel } from './ComposeLiveLogsPanel'
 import { ComposeLiveStatsPanel } from './ComposeLiveStatsPanel'
@@ -19,12 +20,17 @@ export function ComposeWorkspace({ project, onClose }: { project: ComposeProject
   const [selectedServices, setSelectedServices] = useState<string[]>([])
   const [output, setOutput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
 
   const load = async () => {
     const [svc, ws] = await Promise.all([window.dockerApi.compose.services(project), window.dockerApi.compose.workspace(project)])
     setServices(svc); setModel(ws)
   }
   useEffect(() => { load() }, [project.name, project.configFiles])
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   const run = async (fn: () => Promise<any>) => {
     setBusy(true)
@@ -65,8 +71,8 @@ export function ComposeWorkspace({ project, onClose }: { project: ComposeProject
     </div>
 
     <div className="workspace-body compose-workspace-body">
-      {tab === 'overview' && <Overview project={project} model={model} services={services} running={running} unhealthy={unhealthy} run={run} />}
-      {tab === 'services' && <Services project={project} services={services} run={run} selected={selectedServices} setSelected={setSelectedServices} />}
+      {tab === 'overview' && <Overview project={project} model={model} services={services} running={running} unhealthy={unhealthy} now={now} run={run} />}
+      {tab === 'services' && <Services project={project} services={services} now={now} run={run} selected={selectedServices} setSelected={setSelectedServices} />}
       {tab === 'logs' && <><ServiceFilter model={model} selected={selectedServices} setSelected={setSelectedServices} /><ComposeLiveLogsPanel project={project} services={selectedServices} /></>}
       {tab === 'stats' && <><ServiceFilter model={model} selected={selectedServices} setSelected={setSelectedServices} /><ComposeLiveStatsPanel project={project} services={selectedServices} /></>}
       {tab === 'topology' && <Topology services={model?.services ?? []} />}
@@ -79,11 +85,17 @@ export function ComposeWorkspace({ project, onClose }: { project: ComposeProject
   </section>
 }
 
-function Overview({ project, model, services, running, unhealthy, run }: any) {
+function Overview({ project, model, services, running, unhealthy, now, run }: any) {
+  const oldestStartedAt = services
+    .filter((service: ComposeServiceInfo) => service.state === 'running' && service.startedAt)
+    .map((service: ComposeServiceInfo) => service.startedAt)
+    .sort((a: string, b: string) => Date.parse(a) - Date.parse(b))[0] ?? ''
+
   return <div className="compose-overview">
     <div className="diagnostic-grid">
       <Metric title="Services" value={String(model?.services.length ?? services.length)} />
       <Metric title="Running" value={String(running)} tone="ok" />
+      <Metric title="Uptime" value={formatUptime(oldestStartedAt, Boolean(oldestStartedAt), now)} />
       <Metric title="Unhealthy" value={String(unhealthy)} tone={unhealthy ? 'danger' : 'ok'} />
       <Metric title="Volumes" value={String(model?.volumes.length ?? 0)} />
       <Metric title="Networks" value={String(model?.networks.length ?? 0)} />
@@ -101,7 +113,7 @@ function Overview({ project, model, services, running, unhealthy, run }: any) {
   </div>
 }
 
-function Services({ project, services, run, selected, setSelected }: { project: ComposeProject; services: ComposeServiceInfo[]; run: (fn:()=>Promise<any>)=>void; selected:string[]; setSelected:(x:string[])=>void }) {
+function Services({ project, services, now, run, selected, setSelected }: { project: ComposeProject; services: ComposeServiceInfo[]; now: number; run: (fn:()=>Promise<any>)=>void; selected:string[]; setSelected:(x:string[])=>void }) {
   const list = usePaginatedSearch(
     services,
     service => `${service.service} ${service.name} ${service.image} ${service.state} ${service.health} ${service.publishers.map(p => `${p.url}:${p.publishedPort}`).join(' ')}`,
@@ -139,6 +151,7 @@ function Services({ project, services, run, selected, setSelected }: { project: 
         <div className="service-meta">
           <span>Container</span><code>{service.name || '—'}</code>
           <span>State</span><strong>{service.state || '—'}</strong>
+          <span>Uptime</span><strong>{formatUptime(service.startedAt, service.state === 'running', now)}</strong>
           <span>Ports</span><span>{service.publishers.length ? service.publishers.map(p => `${p.url || '0.0.0.0'}:${p.publishedPort} → ${p.targetPort}/${p.protocol}`).join(', ') : '—'}</span>
         </div>
         <div className="inline-actions">

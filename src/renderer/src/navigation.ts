@@ -1,5 +1,6 @@
 import {
   Alert02Icon,
+  Activity01Icon,
   CleanIcon,
   ContainerIcon,
   Database01Icon,
@@ -14,13 +15,16 @@ import {
 } from '@hugeicons/core-free-icons'
 
 export type PageId =
-  | 'dashboard' | 'notifications' | 'activity' | 'tasks' | 'productivity' | 'audit'
+  | 'dashboard' | 'uptime' | 'notifications' | 'activity' | 'tasks' | 'productivity' | 'audit'
   | 'containers' | 'compose' | 'ports' | 'resource-graph' | 'images' | 'buildkit'
   | 'volumes' | 'networks' | 'cleanup' | 'storage' | 'settings' | 'about'
 
-export const NAV_ITEMS = [
+type NavigationItem = { id: PageId; label: string; icon: any; group: string; hidden?: boolean }
+
+export const NAV_ITEMS: readonly NavigationItem[] = [
   { id: 'dashboard' as const, label: 'Dashboard', icon: Home01Icon, group: 'Overview' },
-  { id: 'notifications' as const, label: 'Notifications', icon: Notification03Icon, group: 'Overview' },
+  { id: 'uptime' as const, label: 'Uptime Reports', icon: Activity01Icon, group: 'Overview' },
+  { id: 'notifications' as const, label: 'Notifications', icon: Notification03Icon, group: 'Overview', hidden: true },
   { id: 'activity' as const, label: 'Activity', icon: Alert02Icon, group: 'Overview' },
   { id: 'tasks' as const, label: 'Task Center', icon: Layers01Icon, group: 'Overview' },
   { id: 'productivity' as const, label: 'Productivity', icon: Search01Icon, group: 'Overview' },

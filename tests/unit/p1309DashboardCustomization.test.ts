@@ -10,6 +10,7 @@ describe('P13.09 Dashboard Customization', () => {
   it('defines versioned dashboard widgets and default layout', () => {
     expect(model).toContain("schemaVersion: 1")
     expect(model).toContain("export type DashboardWidgetId")
+    expect(model).toContain("'uptime'")
     expect(model).toContain("'unhealthy'")
     expect(model).toContain("'recent-builds'")
     expect(model).toContain("'top-volumes'")
@@ -57,6 +58,8 @@ describe('P13.09 Dashboard Customization', () => {
     expect(page).toContain('window.dockerApi.buildkit.history().catch(() => [])')
     expect(page).toContain('window.dockerApi.volumes.intelligence().catch(() => [])')
     expect(page).toContain('window.dockerApi.monitoring.notifications().catch(() => [])')
+    expect(page).toContain('void loadComposeUptime()')
+    expect(page).toContain('formatUptime(entry.startedAt, true, now)')
   })
 
   it('adds unhealthy containers, recent builds, top volumes and recent alerts widgets', () => {

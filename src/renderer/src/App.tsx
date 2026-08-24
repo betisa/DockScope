@@ -9,6 +9,7 @@ import { productivityStorage } from './productivity/storage'
 import appIconUrl from './assets/app-icon.png'
 
 const ContainersPage = lazy(() => import('./pages/ContainersPage').then(module => ({ default: module.ContainersPage })))
+const UptimePage = lazy(() => import('./pages/UptimePage').then(module => ({ default: module.UptimePage })))
 const ComposePage = lazy(() => import('./pages/ComposePage').then(module => ({ default: module.ComposePage })))
 const PortExplorerPage = lazy(() => import('./pages/PortExplorerPage').then(module => ({ default: module.PortExplorerPage })))
 const ResourceGraphPage = lazy(() => import('./pages/ResourceGraphPage').then(module => ({ default: module.ResourceGraphPage })))
@@ -184,6 +185,7 @@ export function App() {
 
   const content = useMemo(() => {
     switch (page) {
+      case 'uptime': return <UptimePage />
       case 'activity': return <ActivityPage />
       case 'tasks': return <TaskCenterPage onNavigate={navigate} />
       case 'notifications': return <NotificationsPage onNavigate={target => navigate(target as PageId)} />
@@ -220,7 +222,7 @@ export function App() {
         </div>
 
         <nav className="nav" aria-label="Primary navigation">
-          {NAV_ITEMS.map(item => {
+          {NAV_ITEMS.filter(item => !item.hidden).map(item => {
             const group = item.group !== lastGroup ? item.group : ''
             lastGroup = item.group
 
