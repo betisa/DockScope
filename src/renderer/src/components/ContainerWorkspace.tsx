@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ContainerDiagnostics, ContainerInfo, ContainerProcess } from '../../../shared/contracts'
-import { Badge, CodePanel, EmptyState } from './ui'
+import { Badge, CodePanel, EmptyState, InlineAlert } from './ui'
 import { LiveLogsPanel } from './LiveLogsPanel'
 import { LiveStatsPanel } from './LiveStatsPanel'
 import { TerminalPane } from './TerminalPane'
@@ -13,11 +13,22 @@ const tabs: Tab[] = ['advisor','overview','logs','stats','processes','health','p
 export function ContainerWorkspace({ container, onClose, initialTab }: { container: ContainerInfo; onClose: () => void; initialTab?: string }) {
   const [tab, setTab] = useState<Tab>(tabs.includes(initialTab as Tab) ? initialTab as Tab : 'advisor')
   const [diag, setDiag] = useState<ContainerDiagnostics | null>(null)
+  const [diagError, setDiagError] = useState('')
   const [processes, setProcesses] = useState<ContainerProcess[]>([])
   const [inspect, setInspect] = useState('')
 
   useEffect(() => {
-    window.dockerApi.containers.diagnostics(container.id).then(setDiag)
+    setDiag(null)
+    setDiagError('')
+    let active = true
+    void window.dockerApi.containers.diagnostics(container.id)
+      .then((value) => {
+        if (active) setDiag(value)
+      })
+      .catch((value) => {
+        if (active) setDiagError(value instanceof Error ? value.message : String(value))
+      })
+    return () => { active = false }
   }, [container.id])
 
   useEffect(() => {
@@ -36,7 +47,7 @@ export function ContainerWorkspace({ container, onClose, initialTab }: { contain
       </div>
       <div className="workspace-body">
         {tab === 'advisor' && <ContainerAdvisorPanel containerId={container.id} />}
-        {tab === 'overview' && <Overview diag={diag} />}
+        {tab === 'overview' && <Overview container={container} diag={diag} diagError={diagError} />}
         {tab === 'logs' && <LiveLogsPanel containerId={container.id} />}
         {tab === 'stats' && <LiveStatsPanel containerId={container.id} />}
         {tab === 'processes' && <Processes rows={processes} />}
@@ -54,7 +65,18 @@ export function ContainerWorkspace({ container, onClose, initialTab }: { contain
 }
 
 function title(x: string) { return x.charAt(0).toUpperCase()+x.slice(1) }
-function Overview({ diag }: { diag: ContainerDiagnostics|null }) {
+function Overview({ container, diag, diagError }: { container: ContainerInfo; diag: ContainerDiagnostics|null; diagError: string }) {
+  if (!diag && diagError) {
+    return <div>
+      <InlineAlert tone="danger" title="Could not load container details">{diagError}</InlineAlert>
+      <div className="diagnostic-grid">
+        <Info label="State" value={container.state} />
+        <Info label="Status" value={container.status || '—'} />
+        <Info label="Image" value={container.image || '—'} />
+        <Info label="Ports" value={container.ports || '—'} />
+      </div>
+    </div>
+  }
   if (!diag) return <EmptyState title="Loading diagnostics" text="Reading Docker inspect metadata…" />
   return <div className="diagnostic-grid">
     <Info label="State" value={diag.state} /><Info label="Health" value={diag.health.status} /><Info label="Platform" value={diag.platform || '—'} /><Info label="Restart policy" value={diag.restartPolicy} />

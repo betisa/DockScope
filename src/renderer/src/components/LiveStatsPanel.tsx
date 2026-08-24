@@ -15,9 +15,14 @@ export function LiveStatsPanel({ containerId }: { containerId: string }) {
     let localId: string | null = null
     let buffer = ''
     let unsubs: Array<() => void> = []
+    const applyStats = (parsed: Stats) => {
+      setCurrent(parsed)
+      setCpuHistory((old) => [...old, pct(parsed.CPUPerc)].slice(-60))
+      setMemHistory((old) => [...old, pct(parsed.MemPerc)].slice(-60))
+    }
 
     window.dockerApi.streams.startContainerStats(containerId).then(({ sessionId }) => {
-      if (disposed) { window.dockerApi.streams.stop(sessionId); return }
+      if (disposed) { void window.dockerApi.streams.stop(sessionId); return }
       localId = sessionId
       setState('Live · Esc to stop')
       unsubs = [
@@ -26,17 +31,26 @@ export function LiveStatsPanel({ containerId }: { containerId: string }) {
           const lines = buffer.split(/\r?\n/)
           buffer = lines.pop() ?? ''
           for (const line of lines) {
-            try {
-              const parsed = JSON.parse(line) as Stats
-              setCurrent(parsed)
-              setCpuHistory((old) => [...old, pct(parsed.CPUPerc)].slice(-60))
-              setMemHistory((old) => [...old, pct(parsed.MemPerc)].slice(-60))
-            } catch { /* partial/unsupported line */ }
+            const parsed = parseStatsLine(line)
+            if (parsed) {
+              applyStats(parsed)
+            }
+          }
+
+          const pending = buffer.trim()
+          if (pending) {
+            const parsed = parseStatsLine(pending)
+            if (parsed) {
+              buffer = ''
+              applyStats(parsed)
+            }
           }
         }),
         window.dockerApi.streams.onError(sessionId, (x) => setState(`Error: ${x}`)),
         window.dockerApi.streams.onExit(sessionId, () => setState('Stopped'))
       ]
+    }).catch((error) => {
+      if (!disposed) setState(`Error: ${error instanceof Error ? error.message : String(error)}`)
     })
 
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && localId) window.dockerApi.streams.stop(localId) }
@@ -61,6 +75,16 @@ export function LiveStatsPanel({ containerId }: { containerId: string }) {
       </div>
     </div>
   )
+}
+
+function parseStatsLine(line: string): Stats | null {
+  const cleanLine = line.replace(/\u001b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, '').trim()
+  if (!cleanLine) return null
+  try {
+    return JSON.parse(cleanLine) as Stats
+  } catch {
+    return null
+  }
 }
 
 function pct(v?: string) { const n = Number((v ?? '0').replace('%','')); return Number.isFinite(n) ? n : 0 }
