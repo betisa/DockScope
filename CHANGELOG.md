@@ -5,6 +5,7 @@ All notable changes to DockScope Desktop are documented here.
 ## [1.0.0] - 2026-08-21
 
 ### Added
+- Windows CI now runs on version tag pushes (`v*`) instead of direct pushes to `main` or `develop`.
 - Operational Intelligence now opens from a Dashboard icon in a side drawer; duplicate alert-policy controls were removed from the notification view and Settings is the sole policy source.
 - Uptime Reports page inspired by Uptime Kuma: searchable container/Compose monitor list, live status bars, runtime history chart, 24-hour/30-day uptime metrics, and persisted status samples.
 - Independent Runtime Uptime dashboard widget combining live Docker container and Compose service uptime with customizable placement and visibility.

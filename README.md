@@ -13,7 +13,7 @@
   <img alt="React 19" src="https://img.shields.io/badge/React-19-149ECA?style=flat-square&logo=react&logoColor=white">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white">
   <img alt="License MIT" src="https://img.shields.io/badge/license-MIT-22C55E?style=flat-square">
-  <a href="https://github.com/betisa/DockScope/actions/workflows/ci.yml"><img alt="Windows CI" src="https://img.shields.io/github/actions/workflow/status/betisa/DockScope/ci.yml?branch=main&style=flat-square&label=Windows%20CI"></a>
+  <a href="https://github.com/betisa/DockScope/actions/workflows/ci.yml"><img alt="Windows CI" src="https://img.shields.io/github/actions/workflow/status/betisa/DockScope/ci.yml?style=flat-square&label=Windows%20CI"></a>
   <a href="https://github.com/betisa/DockScope/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/betisa/DockScope?include_prereleases&style=flat-square"></a>
   <a href="https://github.com/betisa/DockScope/issues"><img alt="GitHub Issues" src="https://img.shields.io/github/issues/betisa/DockScope?style=flat-square"></a>
 </p>
