@@ -1117,8 +1117,6 @@ export type DockerApi = {
     notifications(): Promise<OperationalNotification[]>
     markRead(ids: string[]): Promise<void>
     clear(): Promise<void>
-    settings(): Promise<MonitoringSettings>
-    saveSettings(settings: MonitoringSettings): Promise<MonitoringSettings>
     refresh(): Promise<OperationalHealth>
   }
   diagnosticsBundle: {

@@ -10,7 +10,7 @@ describe('Sidebar identity and Build History', () => {
   it('renders Settings only once in the sidebar navigation', () => {
     const matches = navigation.match(/label: 'Settings'/g) ?? []
     expect(matches).toHaveLength(1)
-    expect(app).toContain('NAV_ITEMS.map')
+    expect(app).toContain('NAV_ITEMS.filter(item => !item.hidden).map')
     expect(app).not.toContain('<div className="sidebar-footer">')
   })
 

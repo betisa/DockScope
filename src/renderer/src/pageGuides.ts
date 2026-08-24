@@ -46,7 +46,7 @@ export const PAGE_GUIDES: Record<PageId, PageGuide> = {
           'Unhealthy Containers links directly to the selected container diagnostics Advisor.',
           'Recent Builds surfaces current Buildx history status.',
           'Top Volumes highlights largest persistent volumes together with risk assessment.',
-          'Recent Alerts surfaces warning and critical Operational Intelligence notifications.',
+          'The Operational Intelligence icon opens warning and critical notifications in a side panel.',
           'Quick Actions navigate to Containers, Compose, Cleanup Advisor and Storage Trends.'
         ]
       },
@@ -75,6 +75,38 @@ export const PAGE_GUIDES: Record<PageId, PageGuide> = {
     ]
   },
 
+  uptime: {
+    title: 'Uptime Reports Guide',
+    summary: 'Inspect runtime-derived availability for Docker containers and Compose services with a Kuma-inspired monitor list and history report.',
+    sections: [
+      {
+        title: 'Monitor list',
+        items: [
+          'Use the search field to filter standalone containers and Compose services.',
+          'Compose-owned containers are represented once under their Compose service name.',
+          'Green, red and gray history bars represent running, stopped and unknown runtime states.'
+        ]
+      },
+      {
+        title: 'Report details',
+        items: [
+          'The report derives uptime from Docker-reported StartedAt timestamps.',
+          'The 24-hour and 30-day values describe the current runtime session within each window.',
+          'Status samples refresh every 30 seconds and are persisted as a local UI preference.'
+        ]
+      },
+      {
+        title: 'Limitations',
+        tone: 'info',
+        items: [
+          'This page reports Docker workload runtime, not HTTP/TCP checks against external endpoints.',
+          'Unknown history means DockScope has not observed a prior runtime state for that period.'
+        ]
+      }
+    ],
+    shortcuts: [{ keys: 'Ctrl + K', action: 'Open Command Palette' }]
+  },
+
   notifications: {
     title: 'Notifications Guide',
     summary: 'Operational Intelligence reports meaningful Docker health and storage changes while keeping monitoring actions read-only.',
@@ -94,7 +126,7 @@ export const PAGE_GUIDES: Record<PageId, PageGuide> = {
           'Filter by severity or search notification text.',
           'Open the suggested resource action when one is available.',
           'Mark reviewed notifications as read.',
-          'Adjust monitoring thresholds in Settings when alerts are too noisy or too quiet.'
+          'Adjust monitoring thresholds only in Settings when alerts are too noisy or too quiet.'
         ]
       },
       {

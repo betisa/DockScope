@@ -10,7 +10,7 @@ describe('page and settings icon consistency', () => {
 
   it('uses one shared navigation metadata source for sidebar icons', () => {
     expect(app).toContain("import { NAV_ITEMS } from './navigation'")
-    expect(app).toContain('NAV_ITEMS.map')
+    expect(app).toContain('NAV_ITEMS.filter(item => !item.hidden).map')
     expect(navigation).toContain("id: 'containers'")
     expect(navigation).toContain('ContainerIcon')
     expect(navigation).toContain("id: 'volumes'")
@@ -23,7 +23,7 @@ describe('page and settings icon consistency', () => {
       'CleanupPage.tsx','ComposePage.tsx','ContainersPage.tsx','DashboardPage.tsx',
       'ImagesPage.tsx','NetworksPage.tsx','NotificationsPage.tsx','PortExplorerPage.tsx',
       'ProductivityPage.tsx','ResourceGraphPage.tsx','SettingsPage.tsx','StoragePage.tsx',
-      'TaskCenterPage.tsx','VolumesPage.tsx'
+      'TaskCenterPage.tsx','UptimePage.tsx','VolumesPage.tsx'
     ]
     expect(pageFiles.sort()).toEqual([...expected].sort())
     for (const file of expected) {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import type {
   BuildHistoryRecord,
   ContainerInfo,
+  ComposeServiceInfo,
   DiskUsage,
   EngineStatus,
   OperationalNotification,
@@ -24,6 +25,8 @@ import {
 } from '@hugeicons/core-free-icons'
 import { PageTitle } from '../components/PageTitle'
 import { DashboardCustomizer } from '../components/DashboardCustomizer'
+import { OperationalIntelligenceDrawer } from '../components/OperationalIntelligenceDrawer'
+import { formatUptime } from '../../../shared/formatting'
 import {
   DEFAULT_DASHBOARD_LAYOUT,
   loadDashboardLayout,
@@ -37,20 +40,36 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: PageId) => vo
   const [engine, setEngine] = useState<EngineStatus | null>(null)
   const [usage, setUsage] = useState<DiskUsage[]>([])
   const [containers, setContainers] = useState<ContainerInfo[]>([])
+  const [composeServices, setComposeServices] = useState<DashboardComposeService[]>([])
   const [builds, setBuilds] = useState<BuildHistoryRecord[]>([])
   const [volumes, setVolumes] = useState<VolumeIntelligence[]>([])
   const [alerts, setAlerts] = useState<OperationalNotification[]>([])
   const [layout, setLayout] = useState<DashboardLayout>(() => ({ ...DEFAULT_DASHBOARD_LAYOUT, order:[...DEFAULT_DASHBOARD_LAYOUT.order], hidden:[] }))
   const [customizerOpen, setCustomizerOpen] = useState(false)
+  const [intelligenceOpen, setIntelligenceOpen] = useState(false)
   const [dragged, setDragged] = useState<DashboardWidgetId | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [now, setNow] = useState(() => Date.now())
 
   const closeCustomizer = useCallback(() => setCustomizerOpen(false), [])
 
   const updateLayout = (next: DashboardLayout) => {
     setLayout(next)
     void saveDashboardLayout(next)
+  }
+
+  const loadComposeUptime = async () => {
+    try {
+      const projects = await window.dockerApi.compose.list()
+      const groupedServices = await Promise.all(projects.map(async project => {
+        const services = await window.dockerApi.compose.services(project).catch(() => [])
+        return services.map(service => ({ ...service, projectName: project.name }))
+      }))
+      setComposeServices(groupedServices.flat())
+    } catch {
+      setComposeServices([])
+    }
   }
 
   const load = async () => {
@@ -66,6 +85,7 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: PageId) => vo
         setBuilds([])
         setVolumes([])
         setAlerts([])
+        setComposeServices([])
         return
       }
 
@@ -81,6 +101,7 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: PageId) => vo
       setBuilds(buildRows)
       setVolumes(volumeRows)
       setAlerts(notificationRows)
+      void loadComposeUptime()
     } catch (value) {
       setError(value instanceof Error ? value.message : String(value))
     } finally {
@@ -91,6 +112,11 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: PageId) => vo
   useEffect(() => { void loadDashboardLayout().then(setLayout) }, [])
 
   useEffect(() => { void load() }, [])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   const containerSummary = useMemo(() => {
     const running = containers.filter(container => container.state.toLowerCase() === 'running').length
@@ -129,6 +155,35 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: PageId) => vo
       .slice(0, 6),
     [alerts]
   )
+  const unreadAlerts = alerts.filter(alert => !alert.read).length
+
+  const uptimeEntries = useMemo(() => {
+    const composeIds = new Set(composeServices.map(service => service.id).filter(Boolean))
+    const containerEntries: UptimeEntry[] = containers
+      .filter(container => !composeIds.has(container.id) && container.state.toLowerCase() === 'running' && Number.isFinite(Date.parse(container.startedAt)))
+      .map(container => ({
+        id: `container:${container.id}`,
+        name: container.name,
+        source: 'Container',
+        detail: container.image,
+        startedAt: container.startedAt,
+        target: 'containers' as PageId
+      }))
+    const composeEntries: UptimeEntry[] = composeServices
+      .filter(service => service.state.toLowerCase() === 'running' && Number.isFinite(Date.parse(service.startedAt)))
+      .map(service => ({
+        id: `compose:${service.projectName}:${service.id}`,
+        name: service.service || service.name,
+        source: `Compose · ${service.projectName}`,
+        detail: service.name,
+        startedAt: service.startedAt,
+        target: 'compose' as PageId
+      }))
+
+    return [...containerEntries, ...composeEntries]
+      .sort((left, right) => Date.parse(left.startedAt) - Date.parse(right.startedAt))
+      .slice(0, 8)
+  }, [containers, composeServices])
 
   const openContainerDiagnostics = (container: ContainerInfo) => {
     sessionStorage.setItem('dsm.m08.intent', JSON.stringify({
@@ -163,6 +218,31 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: PageId) => vo
       </div>
     ),
 
+    uptime: (
+      <DashboardListWidget
+        eyebrow="Runtime uptime"
+        title="Running workloads"
+        actionLabel="Open Containers"
+        actionIcon={ContainerIcon}
+        onAction={() => onNavigate('containers')}
+        emptyTitle="No running workload uptime"
+        emptyText="Running containers and Compose services with Docker start timestamps will appear here."
+      >
+        {uptimeEntries.map(entry => (
+          <button className="dashboard-list-row" key={entry.id} onClick={() => onNavigate(entry.target)}>
+            <span>
+              <strong>{entry.name || 'Unnamed workload'}</strong>
+              <small>{entry.source} · {entry.detail || 'Runtime metadata'}</small>
+            </span>
+            <span className="dashboard-list-value">
+              <strong>{formatUptime(entry.startedAt, true, now)}</strong>
+              <Badge tone="ok">Running</Badge>
+            </span>
+          </button>
+        ))}
+      </DashboardListWidget>
+    ),
+
     'storage-chart': (
       <div className="card dashboard-chart-card">
         {usage.length ? (
@@ -179,7 +259,7 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: PageId) => vo
         <div className="chart-summary-strip">
           <button onClick={() => onNavigate('containers')}><span>Running</span><strong>{containerSummary.running}</strong></button>
           <button onClick={() => onNavigate('containers')}><span>Stopped</span><strong>{containerSummary.stopped}</strong></button>
-          <button onClick={() => onNavigate('notifications')}><span>Unhealthy</span><strong>{containerSummary.unhealthy}</strong></button>
+          <button onClick={() => setIntelligenceOpen(true)}><span>Unhealthy</span><strong>{containerSummary.unhealthy}</strong></button>
         </div>
       </div>
     ),
@@ -280,12 +360,12 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: PageId) => vo
         title="Recent alerts"
         actionLabel="Open Notifications"
         actionIcon={Notification03Icon}
-        onAction={() => onNavigate('notifications')}
+        onAction={() => setIntelligenceOpen(true)}
         emptyTitle="No recent warnings"
         emptyText="No warning or critical operational notifications are currently recorded."
       >
         {recentAlerts.map(alert => (
-          <button className="dashboard-list-row" key={alert.id} onClick={() => onNavigate('notifications')}>
+          <button className="dashboard-list-row" key={alert.id} onClick={() => setIntelligenceOpen(true)}>
             <span><strong>{alert.title}</strong><small>{alert.message} · {formatDate(alert.createdAt)}</small></span>
             <Badge tone={alert.severity === 'critical' ? 'danger' : 'warn'}>{alert.severity}</Badge>
           </button>
@@ -308,6 +388,10 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: PageId) => vo
       <div className="page-heading">
         <PageTitle page="dashboard" title="Docker workstation overview" subtitle="Runtime health, storage growth, operational signals, and safe maintenance actions in one place." />
         <div className="inline-actions">
+          <button className="dashboard-intelligence-trigger" onClick={() => setIntelligenceOpen(true)} aria-label="Open Operational Intelligence" title="Operational Intelligence">
+            <AppIcon icon={Notification03Icon} />
+            {unreadAlerts > 0 && <span className="dashboard-intelligence-count">{unreadAlerts > 99 ? '99+' : unreadAlerts}</span>}
+          </button>
           <button className="button secondary" onClick={() => setCustomizerOpen(true)}>
             <AppIcon icon={Settings01Icon} />
             Customize
@@ -363,6 +447,13 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: PageId) => vo
         }}
         onClose={closeCustomizer}
       />
+      {intelligenceOpen && <OperationalIntelligenceDrawer
+        onClose={() => setIntelligenceOpen(false)}
+        onNavigate={target => {
+          setIntelligenceOpen(false)
+          if (target !== 'notifications') onNavigate(target as PageId)
+        }}
+      />}
     </div>
   )
 }
@@ -475,6 +566,19 @@ function Quick({ icon, title, text, onClick }: { icon:any; title: string; text: 
       </span>
     </button>
   )
+}
+
+type DashboardComposeService = ComposeServiceInfo & {
+  projectName: string
+}
+
+type UptimeEntry = {
+  id: string
+  name: string
+  source: string
+  detail: string
+  startedAt: string
+  target: PageId
 }
 
 type ContainerIssue = {
