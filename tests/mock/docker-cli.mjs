@@ -124,6 +124,9 @@ Build cache usage: 9.1GB`)
   console.log(JSON.stringify({ID:'sha256:img1',Repository:'postgres',Tag:'18',Size:'450MB',CreatedSince:'2 weeks ago'}))
 } else if (key === 'compose ls --all --format json') {
   console.log(JSON.stringify([{Name:'sample',Status:'running(2)',ConfigFiles:'C:\\\\repo\\\\compose.yaml'}]))
+} else if (key === 'compose -p sample -f C:\\repo\\compose.yaml ps --all --no-trunc --format json') {
+  console.log(JSON.stringify({ID:'abc123',Name:'sample-api-1',Service:'api',Image:'my-api:latest',State:'running',Health:'healthy',ExitCode:0,Publishers:[]}))
+  console.log(JSON.stringify({ID:'def456',Name:'sample-worker-1',Service:'worker',Image:'worker:latest',State:'exited',Health:'',ExitCode:0,Publishers:[]}))
 } else if (key === 'stats --no-stream --format json abc123') {
   console.log(JSON.stringify({Name:'api',CPUPerc:'12.50%',MemUsage:'450MiB / 1GiB',MemPerc:'43.95%',NetIO:'10MB / 4MB',BlockIO:'2MB / 1MB',PIDs:'18'}))
 } else if (key === 'container logs --timestamps --tail 400 abc123') {
@@ -148,7 +151,7 @@ Build cache usage: 9.1GB`)
           'com.docker.compose.service':'api'
         }
       },
-      State:{Status:'running',Health:{Status:'healthy'}},
+      State:{Status:'running',Running:true,StartedAt:'2026-08-21T11:00:00Z',Health:{Status:'healthy'}},
       Mounts:[
         {Type:'volume',Name:'db-data',Source:'/var/lib/docker/volumes/db-data/_data',Destination:'/var/lib/postgresql/data',Driver:'local',Mode:'rw',RW:true,Propagation:''}
       ],
@@ -177,7 +180,7 @@ Build cache usage: 9.1GB`)
           'com.docker.compose.service':'worker'
         }
       },
-      State:{Status:'running'},
+      State:{Status:'running',Running:true,StartedAt:'2026-08-20T10:00:00Z'},
       Mounts:[],
       NetworkSettings:{
         Networks:{

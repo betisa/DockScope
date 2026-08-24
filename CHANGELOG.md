@@ -5,6 +5,7 @@ All notable changes to DockScope Desktop are documented here.
 ## [1.0.0] - 2026-08-21
 
 ### Added
+- Live uptime for running Docker containers and Compose services, backed by Docker runtime start timestamps and refreshed in the renderer.
 - Build History Diagnostics modal: BuildKit Diagnostics now opens in an accessible modal with the existing Overview/Logs/Steps/Cache/Timing/Error Analysis tabs instead of an inline workspace.
 - Unified Images & Image Intelligence: removed the standalone Image Intelligence page and moved analysis into an accessible modal launched from each Images row; Resource Graph and Command Palette image deep-links now open that modal.
 - About / Updates / Release Channel: runtime app/Electron/Node/Chromium/Docker versions, bundled/remote release notes, Stable/Preview channel, explicit update check/download/progress/install and NSIS/Portable safety handling.

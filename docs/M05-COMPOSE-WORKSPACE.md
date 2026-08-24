@@ -14,6 +14,7 @@ Turn Docker Compose management from a flat lifecycle table into a project-centri
 ### Service management
 - Service inventory from `docker compose ps --all --format json`
 - State / health / image / container / publisher information
+- Per-service uptime based on Docker-reported start timestamps, plus the oldest running service uptime in the project overview
 - Service-level Start / Stop / Restart
 - Multi-service selection for logs and stats filters
 

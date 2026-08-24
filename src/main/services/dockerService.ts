@@ -49,6 +49,34 @@ function parseJsonLines<T>(raw: string): T[] {
     .map((line) => JSON.parse(line) as T)
 }
 
+type ContainerRuntimeMetadata = {
+  startedAt: string
+}
+
+async function inspectContainerRuntime(ids: string[]): Promise<Map<string, ContainerRuntimeMetadata>> {
+  const metadata = new Map<string, ContainerRuntimeMetadata>()
+  if (!ids.length) return metadata
+
+  const result = await run('docker', ['container', 'inspect', ...ids])
+  if (!result.ok) return metadata
+
+  let rows: any[]
+  try {
+    const parsed = JSON.parse(result.stdout || '[]')
+    rows = Array.isArray(parsed) ? parsed : [parsed]
+  } catch {
+    return metadata
+  }
+
+  for (const row of rows) {
+    const id = String(row?.Id ?? row?.ID ?? '')
+    if (!id) continue
+    metadata.set(id, { startedAt: String(row?.State?.StartedAt ?? '') })
+  }
+
+  return metadata
+}
+
 function projectArgs(project: ComposeProject): string[] {
   const files = project.configFiles
     .split(',')
@@ -523,11 +551,15 @@ export const dockerService = {
     ])
     if (!result.ok) throw new Error(result.stderr)
 
-    return parseJsonLines<any>(result.stdout).map((x) => ({
+    const inventory = parseJsonLines<any>(result.stdout)
+    const metadata = await inspectContainerRuntime(inventory.map((x) => String(x.ID ?? '')).filter(Boolean))
+
+    return inventory.map((x) => ({
       id: x.ID ?? '',
       name: x.Names ?? '',
       image: x.Image ?? '',
       state: x.State ?? '',
+      startedAt: metadata.get(String(x.ID ?? ''))?.startedAt ?? '',
       status: x.Status ?? '',
       ports: x.Ports ?? '',
       size: x.Size ?? ''
@@ -1339,12 +1371,16 @@ export const dockerService = {
   async composeServices(project: ComposeProject): Promise<ComposeServiceInfo[]> {
     const result = await run('docker', [...projectArgs(project), 'ps', '--all', '--no-trunc', '--format', 'json'])
     if (!result.ok) throw new Error(result.stderr || 'Unable to list Compose services')
-    return parseJsonLines<any>(result.stdout).map((x) => ({
+    const inventory = parseJsonLines<any>(result.stdout)
+    const metadata = await inspectContainerRuntime(inventory.map((x) => String(x.ID ?? '')).filter(Boolean))
+
+    return inventory.map((x) => ({
       id: x.ID ?? '',
       name: x.Name ?? '',
       service: x.Service ?? '',
       image: x.Image ?? '',
       state: x.State ?? '',
+      startedAt: metadata.get(String(x.ID ?? ''))?.startedAt ?? '',
       health: x.Health ?? '',
       exitCode: Number(x.ExitCode ?? 0),
       publishers: Array.isArray(x.Publishers) ? x.Publishers.map((p: any) => ({

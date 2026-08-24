@@ -267,6 +267,7 @@ export type ContainerInfo = {
   name: string
   image: string
   state: string
+  startedAt: string
   status: string
   ports: string
   size: string
@@ -466,6 +467,7 @@ export type ComposeServiceInfo = {
   service: string
   image: string
   state: string
+  startedAt: string
   health: string
   exitCode: number
   publishers: ComposePublisher[]

@@ -1,5 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import type { ContainerInfo } from '../../../shared/contracts'
+import { formatUptime } from '../../../shared/formatting'
 import { Badge, ConfirmButton, EmptyState, InlineAlert, LoadingState } from '../components/ui'
 import { ContainerWorkspace } from '../components/ContainerWorkspace'
 import { VirtualTable } from '../components/VirtualTable'
@@ -13,7 +14,13 @@ export function ContainersPage({ filter }: { filter: string }) {
   const [workspaceInitialTab, setWorkspaceInitialTab] = useState<string | undefined>(undefined)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [now, setNow] = useState(() => Date.now())
   const deferredFilter = useDeferredValue(filter)
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   const load = async () => {
     setLoading(true)
@@ -98,7 +105,7 @@ export function ContainersPage({ filter }: { filter: string }) {
           <VirtualTable
             items={visible}
             ariaLabel="Docker containers"
-            headers={['Name', 'State', 'Image', 'Ports', 'Size', 'Actions']}
+            headers={['Name', 'State', 'Uptime', 'Image', 'Ports', 'Size', 'Actions']}
             rowKey={container => container.id}
             renderRow={container => (
               <tr
@@ -110,6 +117,7 @@ export function ContainersPage({ filter }: { filter: string }) {
               >
                 <td><strong>{container.name}</strong></td>
                 <td><Badge tone={container.state === 'running' ? 'ok' : 'neutral'}>{container.state}</Badge></td>
+                <td>{formatUptime(container.startedAt, container.state === 'running', now)}</td>
                 <td className="mono wrap">{container.image}</td>
                 <td className="muted wrap">{container.ports || '—'}</td>
                 <td>{container.size || '—'}</td>
