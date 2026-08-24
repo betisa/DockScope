@@ -1,16 +1,16 @@
 {
-  "version": "1.0.0",
-  "date": "2026-08-22",
+  "version": "1.1.0",
+  "date": "2026-08-25",
   "channel": "stable",
-  "title": "DockScope 1.0.0",
+  "title": "DockScope 1.1.0",
   "highlights": [
-    "Advanced Docker diagnostics for builds, containers, ports, volumes and dependency topology.",
-    "Operation Task Center with guarded long-running operations and persistent SQLite history.",
-    "Diagnostics Bundle Export with redaction and bounded support data.",
-    "Storage Trends and customizable operational Dashboard.",
-    "Target-based Smart Cleanup Planning with persistent Volume exclusion.",
-    "Guarded Container File Browser with browse, text view, download, upload and audited writes.",
-    "Unified SQLite persistence through Knex.js."
+    "Uptime Reports and live runtime uptime for Docker containers and Compose services.",
+    "Container and Compose workspace diagnostics and live stats restored with resilient parsing.",
+    "AI-assisted container failure analysis now supports bounded evidence and Ollama/OpenAI-compatible responses.",
+    "Colored logs now support copy all, selected-text copy and export across workspaces and Build Diagnostics.",
+    "Build Diagnostics Steps are presented as a status timeline with semantic icons.",
+    "Operational Intelligence is available from a Dashboard side drawer with a customizable uptime widget.",
+    "Advanced Docker diagnostics, Storage Trends, Task Center, Diagnostics Bundle Export and safe cleanup remain available."
   ],
   "security": [
     "Renderer remains sandboxed with nodeIntegration disabled and contextIsolation enabled.",
