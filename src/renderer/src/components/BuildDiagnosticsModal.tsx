@@ -1,8 +1,10 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import type { AiBuildErrorAnalysis, AiProviderSettings, BuildDiagnosticFinding, BuildDiagnostics, BuildHistoryRecord } from '../../../shared/contracts'
-import { Badge, CodePanel, EmptyState, InlineAlert, LoadingState } from './ui'
+import { Badge, EmptyState, InlineAlert, LoadingState } from './ui'
 import { AppIcon } from './Icon'
-import { RefreshIcon, Search01Icon } from '@hugeicons/core-free-icons'
+import { Alert02Icon, Archive02Icon, CheckmarkCircle02Icon, Loading03Icon, RefreshIcon, Search01Icon } from '@hugeicons/core-free-icons'
+import { ColoredLogConsole } from './ColoredLogConsole'
+import { LogActions } from './LogActions'
 
 type Tab = 'overview' | 'logs' | 'steps' | 'cache' | 'timing' | 'errors'
 const tabs: Array<{ id: Tab; label: string }> = [
@@ -180,7 +182,7 @@ export function BuildDiagnosticsModal({
           {!loading && !error && diagnostics ? (
             <>
               {tab === 'overview' && <Overview diagnostics={diagnostics} />}
-              {tab === 'logs' && <Logs value={visibleLogs} query={query} onQueryChange={setQuery} />}
+              {tab === 'logs' && <Logs value={visibleLogs} allValue={diagnostics.logs} query={query} onQueryChange={setQuery} fileName={`build-${ref}-logs.log`} />}
               {tab === 'steps' && <Steps steps={steps} details={diagnostics} />}
               {tab === 'cache' && <Cache diagnostics={diagnostics} steps={steps} />}
               {tab === 'timing' && <Timing diagnostics={diagnostics} />}
@@ -281,7 +283,7 @@ function Overview({ diagnostics }: { diagnostics: BuildDiagnostics }) {
   )
 }
 
-function Logs({ value, query, onQueryChange }: { value: string; query: string; onQueryChange: (value: string) => void }) {
+function Logs({ value, allValue, query, onQueryChange, fileName }: { value: string; allValue: string; query: string; onQueryChange: (value: string) => void; fileName: string }) {
   return (
     <div className="build-log-view">
       <div className="build-log-toolbar">
@@ -290,10 +292,17 @@ function Logs({ value, query, onQueryChange }: { value: string; query: string; o
           <span className="sr-only">Search build logs</span>
           <input value={query} onChange={event => onQueryChange(event.target.value)} placeholder="Search build logs…" />
         </label>
+        <LogActions value={allValue} fileName={fileName} />
         <span className="muted">Buildx progress=plain</span>
       </div>
       {!value ? <EmptyState title="No build logs" text="Buildx did not return logs for this record." /> : (
-        <CodePanel title={query ? 'Filtered build logs' : 'Build logs'} value={value} />
+        <ColoredLogConsole
+          value={value}
+          actionValue={allValue}
+          emptyText="No build logs"
+          ariaLabel="Build diagnostics logs output"
+          exportFileName={fileName}
+        />
       )}
     </div>
   )
@@ -304,24 +313,43 @@ function Steps({ steps, details }: { steps: BuildLogStep[]; details: BuildDiagno
     return <EmptyState title="No parsed build steps" text="The logs did not contain Buildx plain-progress step markers. Use the Logs tab for raw output." />
   }
   return (
-    <div className="build-step-list">
+    <div className="build-step-timeline">
       <div className="build-progress-summary">
         <strong>{details.details.completedSteps}/{details.details.totalSteps || steps.length}</strong>
         <span>completed steps</span>
       </div>
-      {steps.map(step => (
-        <article className="card build-step-row" key={step.id}>
-          <div className={`build-step-status step-${step.status.toLowerCase()}`} aria-hidden="true" />
-          <div className="build-step-main">
-            <div className="build-step-title-row">
-              <strong>#{step.id} {step.title}</strong>
-              <Badge tone={step.status === 'ERROR' ? 'danger' : step.status === 'CACHED' ? 'info' : step.status === 'DONE' ? 'ok' : 'neutral'}>{step.status}</Badge>
-            </div>
-            {step.detail && <div className="mono muted wrap">{step.detail}</div>}
-          </div>
-          <div className="build-step-duration">{step.duration || '—'}</div>
-        </article>
-      ))}
+      <div className="build-step-timeline-track">
+        {steps.map((step, index) => {
+          const icon = step.status === 'DONE'
+            ? CheckmarkCircle02Icon
+            : step.status === 'CACHED'
+              ? Archive02Icon
+              : step.status === 'ERROR'
+                ? Alert02Icon
+                : Loading03Icon
+          return (
+            <article className={`build-step-timeline-item step-${step.status.toLowerCase()}`} key={step.id}>
+              <div className="build-step-timeline-marker" aria-hidden="true">
+                <AppIcon icon={icon} size={18} />
+              </div>
+              {index < steps.length - 1 && <div className="build-step-timeline-connector" aria-hidden="true" />}
+              <div className="card build-step-timeline-card">
+                <div className="build-step-title-row">
+                  <div className="build-step-heading">
+                    <span className="build-step-number">Step #{step.id}</span>
+                    <strong>{step.title}</strong>
+                  </div>
+                  <div className="build-step-meta">
+                    <Badge tone={step.status === 'ERROR' ? 'danger' : step.status === 'CACHED' ? 'info' : step.status === 'DONE' ? 'ok' : 'neutral'}>{step.status}</Badge>
+                    <span className="build-step-duration">{step.duration || '—'}</span>
+                  </div>
+                </div>
+                {step.detail && <div className="mono muted wrap build-step-detail">{step.detail}</div>}
+              </div>
+            </article>
+          )
+        })}
+      </div>
     </div>
   )
 }

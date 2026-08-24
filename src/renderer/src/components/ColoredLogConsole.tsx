@@ -1,4 +1,5 @@
-import { forwardRef, useMemo } from 'react'
+import { forwardRef, useEffect, useMemo, useState } from 'react'
+import { copyLogText, exportLogText, LogContextMenu } from './LogActions'
 
 type ColoredLogConsoleProps = {
   value: string
@@ -6,6 +7,8 @@ type ColoredLogConsoleProps = {
   ariaLabel: string
   compose?: boolean
   tabIndex?: number
+  exportFileName?: string
+  actionValue?: string
 }
 
 type Severity = 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'stdout'
@@ -22,11 +25,39 @@ const composePrefixPattern = /^([^|\r\n]{1,80}?)(\s+\|\s+)/
 const stderrPattern = /^\s*\[stderr\]/
 
 export const ColoredLogConsole = forwardRef<HTMLDivElement, ColoredLogConsoleProps>(
-  function ColoredLogConsole({ value, emptyText, ariaLabel, compose = false, tabIndex = 0 }, ref) {
+  function ColoredLogConsole({ value, emptyText, ariaLabel, compose = false, tabIndex = 0, exportFileName = 'dockscope-logs.log', actionValue }, ref) {
+    const allValue = actionValue ?? value
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; selectedText: string } | null>(null)
     const lines = useMemo(() => {
       if (!value) return []
       return value.split(/\r?\n/)
     }, [value])
+
+    useEffect(() => {
+      if (!contextMenu) return
+      const close = () => setContextMenu(null)
+      const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') close() }
+      window.addEventListener('click', close)
+      window.addEventListener('keydown', onKeyDown)
+      return () => {
+        window.removeEventListener('click', close)
+        window.removeEventListener('keydown', onKeyDown)
+      }
+    }, [contextMenu])
+
+    const openContextMenu = (x: number, y: number) => {
+      const menuWidth = 190
+      const menuHeight = 132
+      setContextMenu({
+        x: Math.max(8, Math.min(x, window.innerWidth - menuWidth - 8)),
+        y: Math.max(8, Math.min(y, window.innerHeight - menuHeight - 8)),
+        selectedText: window.getSelection()?.toString() ?? ''
+      })
+    }
+
+    const runContextAction = (action: () => Promise<void> | void) => {
+      void Promise.resolve(action()).catch(() => undefined).finally(() => setContextMenu(null))
+    }
 
     return (
       <div
@@ -36,12 +67,34 @@ export const ColoredLogConsole = forwardRef<HTMLDivElement, ColoredLogConsolePro
         aria-label={ariaLabel}
         aria-live="off"
         tabIndex={tabIndex}
+        onContextMenu={event => {
+          event.preventDefault()
+          openContextMenu(event.clientX, event.clientY)
+        }}
+        onKeyDown={event => {
+          if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+            event.preventDefault()
+            const rect = event.currentTarget.getBoundingClientRect()
+            openContextMenu(rect.left + 16, rect.top + 16)
+          }
+        }}
       >
         {!lines.length ? (
           <div className="log-line log-line-empty"><span>{emptyText}</span></div>
         ) : lines.map((line, index) => (
           <ColoredLogLine line={line} compose={compose} key={index} />
         ))}
+        {contextMenu && (
+          <LogContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            hasSelection={Boolean(contextMenu.selectedText.trim())}
+            hasContent={Boolean(allValue)}
+            onCopySelection={() => runContextAction(() => copyLogText(contextMenu.selectedText))}
+            onCopyAll={() => runContextAction(() => copyLogText(allValue))}
+            onExport={() => runContextAction(() => exportLogText(allValue, exportFileName))}
+          />
+        )}
       </div>
     )
   }

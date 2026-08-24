@@ -5,6 +5,7 @@ describe('Colored Container / Compose workspace logs', () => {
   const renderer=readFileSync('src/renderer/src/components/ColoredLogConsole.tsx','utf8')
   const container=readFileSync('src/renderer/src/components/LiveLogsPanel.tsx','utf8')
   const compose=readFileSync('src/renderer/src/components/ComposeLiveLogsPanel.tsx','utf8')
+  const actions=readFileSync('src/renderer/src/components/LogActions.tsx','utf8')
   const styles=readFileSync('src/renderer/src/styles.css','utf8')
 
   it('uses the shared colored console in both workspaces',()=>{
@@ -48,5 +49,14 @@ describe('Colored Container / Compose workspace logs', () => {
     expect(styles).toContain('font-weight:800')
     expect(container).toContain('Log color legend')
     expect(compose).toContain('Log color legend')
+  })
+
+  it('provides copy-all, export and selection context actions in both log workspaces',()=>{
+    expect(container).toContain("import { LogActions }")
+    expect(compose).toContain("import { LogActions }")
+    expect(renderer).toContain('onContextMenu')
+    expect(actions).toContain('Copy selection')
+    expect(actions).toContain('Export logs')
+    expect(styles).toContain('.log-context-menu')
   })
 })

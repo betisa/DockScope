@@ -2,6 +2,7 @@ import { Switch } from './ui'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ComposeProject } from '../../../shared/contracts'
 import { ColoredLogConsole } from './ColoredLogConsole'
+import { LogActions } from './LogActions'
 
 export function ComposeLiveLogsPanel({ project, services = [] }: { project: ComposeProject; services?: string[] }) {
   const [text, setText] = useState('')
@@ -58,6 +59,7 @@ export function ComposeLiveLogsPanel({ project, services = [] }: { project: Comp
       <Switch checked={autoScroll} onChange={setAutoScroll} label="Auto-scroll" compact />
       <button className="button secondary" onClick={() => setPaused((x) => !x)}>{paused ? 'Resume' : 'Pause'}</button>
       <button className="button secondary" onClick={() => setText('')}>Clear</button>
+      <LogActions value={text} fileName={`compose-${project.name}-logs.log`} />
       <span className="log-color-legend" aria-label="Log color legend">
         <i className="legend-error" /> Error
         <i className="legend-warn" /> Warn
@@ -71,6 +73,7 @@ export function ComposeLiveLogsPanel({ project, services = [] }: { project: Comp
       emptyText="Waiting for Compose log output…"
       ariaLabel="Live Compose logs output"
       compose
+      exportFileName={`compose-${project.name}-logs.log`}
     />
   </section>
 }
