@@ -2,6 +2,14 @@ import { useEffect, useState } from 'react'
 import type { ComposeProject } from '../../../shared/contracts'
 
 type Row = { Name?: string; Container?: string; CPUPerc?: string; MemUsage?: string; MemPerc?: string; NetIO?: string; BlockIO?: string; PIDs?: string }
+const ANSI_ESCAPE = /\u001b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g
+
+function parseStatsRow(line: string): Row | null {
+  const cleanLine = line.replace(ANSI_ESCAPE, '').trim()
+  if (!cleanLine) return null
+  try { return JSON.parse(cleanLine) as Row }
+  catch { return null }
+}
 
 export function ComposeLiveStatsPanel({ project, services = [] }: { project: ComposeProject; services?: string[] }) {
   const [rows, setRows] = useState<Record<string, Row>>({})
@@ -22,16 +30,24 @@ export function ComposeLiveStatsPanel({ project, services = [] }: { project: Com
           const lines = buffer.split(/\r?\n/)
           buffer = lines.pop() ?? ''
           for (const line of lines) {
-            try {
-              const parsed = JSON.parse(line) as Row
-              const key = parsed.Name || parsed.Container || `row-${Date.now()}`
-              setRows((old) => ({ ...old, [key]: parsed }))
-            } catch { /* partial line */ }
+            const parsed = parseStatsRow(line)
+            if (!parsed) continue
+            const key = parsed.Name || parsed.Container || `row-${Date.now()}`
+            setRows((old) => ({ ...old, [key]: parsed }))
+          }
+
+          const complete = parseStatsRow(buffer)
+          if (complete) {
+            const key = complete.Name || complete.Container || `row-${Date.now()}`
+            setRows((old) => ({ ...old, [key]: complete }))
+            buffer = ''
           }
         }),
         window.dockerApi.streams.onError(sessionId, (x) => setState(`Error: ${x}`)),
         window.dockerApi.streams.onExit(sessionId, () => setState('Stopped'))
       ]
+    }).catch((error) => {
+      if (!disposed) setState(`Error: ${error instanceof Error ? error.message : String(error)}`)
     })
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && localId) window.dockerApi.streams.stop(localId) }
     window.addEventListener('keydown', onKey)
@@ -39,7 +55,7 @@ export function ComposeLiveStatsPanel({ project, services = [] }: { project: Com
       disposed = true
       window.removeEventListener('keydown', onKey)
       unsubs.forEach((x) => x())
-      if (localId) window.dockerApi.streams.stop(localId)
+      if (localId) void window.dockerApi.streams.stop(localId)
     }
   }, [project.name, project.configFiles, services.join('|')])
 
