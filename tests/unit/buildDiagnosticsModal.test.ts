@@ -5,6 +5,7 @@ describe('BuildKit Build History Diagnostics modal', () => {
   const page = readFileSync('src/renderer/src/pages/BuildKitPage.tsx','utf8')
   const modal = readFileSync('src/renderer/src/components/BuildDiagnosticsModal.tsx','utf8')
   const guide = readFileSync('src/renderer/src/pageGuides.ts','utf8')
+  const styles = readFileSync('src/renderer/src/styles.css','utf8')
 
   it('removes the old inline diagnostics workspace component', () => {
     expect(existsSync('src/renderer/src/components/BuildDiagnosticsWorkspace.tsx')).toBe(false)
@@ -27,6 +28,19 @@ describe('BuildKit Build History Diagnostics modal', () => {
     expect(modal).toContain('previous?.focus()')
   })
 
+  it('renders build steps as a status timeline with semantic icons', () => {
+    expect(modal).toContain('build-step-timeline')
+    expect(modal).toContain('CheckmarkCircle02Icon')
+    expect(modal).toContain('Archive02Icon')
+    expect(modal).toContain('Loading03Icon')
+    expect(modal).toContain('Alert02Icon')
+    expect(modal).toContain('build-step-detail')
+    expect(styles).toContain('.build-step-timeline')
+    expect(styles).toContain('.build-step-timeline-marker')
+    expect(styles).toContain('border:0; border-radius:0; background:transparent')
+    expect(styles).toContain('.build-step-detail')
+  })
+
   it('retains all diagnostic tabs', () => {
     for (const tab of ['Overview','Logs','Steps','Cache','Timing','Error Analysis']) {
       expect(modal).toContain(`label: '${tab}'`)
@@ -44,6 +58,13 @@ describe('BuildKit Build History Diagnostics modal', () => {
     expect(modal).toContain('Open in Docker Desktop')
     expect(modal).toContain('Reload')
     expect(modal).toContain('Diagnostics are read-only.')
+  })
+
+  it('renders colored build logs with shared copy and export actions', () => {
+    expect(modal).toContain("import { ColoredLogConsole }")
+    expect(modal).toContain("import { LogActions }")
+    expect(modal).toContain('ariaLabel="Build diagnostics logs output"')
+    expect(modal).toContain('build-${ref}-logs.log')
   })
 
   it('documents the modal workflow in the BuildKit Guide', () => {

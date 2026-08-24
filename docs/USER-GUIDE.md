@@ -5,7 +5,7 @@
 Every top-level page has a **Guide** button beside its title. It opens a contextual guide inside the current page, so you can review workflows, safety notes, and shortcuts without leaving your current Docker workspace. See [In-App Page Guides](./IN-APP-PAGE-GUIDES.md).
 
 
-> Version: **1.0.0 GA Candidate**  
+> Version: **1.1.0 Release Candidate**<br>
 > Platform: **Windows 10/11 + Docker Desktop**  
 > Scope: Runtime diagnostics, Compose operations, storage intelligence, cleanup, monitoring, audit, and VHDX management.
 

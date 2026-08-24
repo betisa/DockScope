@@ -3,6 +3,7 @@ import { AppIcon } from './Icon'
 import { Switch } from './ui'
 import { Search01Icon, PauseIcon, PlayIcon, Delete02Icon } from '@hugeicons/core-free-icons'
 import { ColoredLogConsole } from './ColoredLogConsole'
+import { LogActions } from './LogActions'
 
 export function LiveLogsPanel({ containerId }: { containerId: string }) {
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -128,6 +129,7 @@ export function LiveLogsPanel({ containerId }: { containerId: string }) {
           <AppIcon icon={Delete02Icon} />
           Clear
         </button>
+        <LogActions value={text} fileName={`container-${containerId}-logs.log`} />
         <span className="log-color-legend" aria-label="Log color legend">
           <i className="legend-error" /> Error
           <i className="legend-warn" /> Warn
@@ -142,6 +144,7 @@ export function LiveLogsPanel({ containerId }: { containerId: string }) {
         value={display}
         emptyText="Waiting for log output…"
         ariaLabel="Live container logs output"
+        exportFileName={`container-${containerId}-logs.log`}
       />
     </section>
   )

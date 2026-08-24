@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 1.0.0" src="https://img.shields.io/badge/version-1.0.0-2563EB?style=flat-square">
+  <img alt="Version 1.1.0" src="https://img.shields.io/badge/version-1.1.0-2563EB?style=flat-square">
   <img alt="Windows 10 and 11" src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D4?style=flat-square&logo=windows11&logoColor=white">
   <img alt="Docker Desktop" src="https://img.shields.io/badge/Docker-Desktop-2496ED?style=flat-square&logo=docker&logoColor=white">
   <img alt="Electron 43" src="https://img.shields.io/badge/Electron-43-47848F?style=flat-square&logo=electron&logoColor=white">
@@ -713,7 +713,7 @@ Milestone-specific implementation notes remain under `docs/M04-*` through `docs/
 
 ## Known GA requirements
 
-The source is a **1.0.0 GA Candidate**. Before publishing public Windows binaries:
+The source is a **1.1.0 Release Candidate**. Before publishing public Windows binaries:
 
 1. generate and commit an approved `package-lock.json`;
 2. use `npm ci` in release CI after the lockfile is committed;

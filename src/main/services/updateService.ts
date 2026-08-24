@@ -15,15 +15,17 @@ import { dockerService } from './dockerService'
 const { autoUpdater } = electronUpdater
 
 const DEFAULT_NOTES: ReleaseNotesDocument = {
-  version: '1.0.0',
-  date: '2026-08-22',
+  version: '1.1.0',
+  date: '2026-08-25',
   channel: 'stable',
-  title: 'DockScope 1.0.0',
+  title: 'DockScope 1.1.0',
   highlights: [
-    'Advanced Docker diagnostics, Storage Trends and a customizable operational Dashboard.',
-    'Target-based Smart Cleanup Planning with persistent Volumes excluded.',
-    'Guarded Container File Browser with audited upload and text writes.',
-    'Unified SQLite persistence through Knex.js.'
+    'Uptime Reports and live runtime uptime for Docker containers and Compose services.',
+    'Container and Compose workspace diagnostics and live stats restored with resilient parsing.',
+    'AI-assisted container failure analysis now supports bounded evidence and Ollama/OpenAI-compatible responses.',
+    'Colored logs now support copy all, selected-text copy and export across workspaces and Build Diagnostics.',
+    'Build Diagnostics Steps are presented as a status timeline with semantic icons.',
+    'Operational Intelligence is available from a Dashboard side drawer with a customizable uptime widget.'
   ],
   security: [
     'Renderer remains sandboxed and privileged operations stay in Electron Main.'

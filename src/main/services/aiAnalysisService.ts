@@ -11,6 +11,9 @@ import { dockerService } from './dockerService'
 
 const SETTINGS_KEY = 'ai.openaiCompatible.settings'
 const SECRET_KEY = 'secret.ai.openaiCompatible.apiKey'
+const AI_ANALYSIS_LOG_CHAR_LIMIT = 6_000
+const AI_ANALYSIS_HEALTH_OUTPUT_CHAR_LIMIT = 800
+const AI_ANALYSIS_MAX_OUTPUT_TOKENS = 900
 
 const DEFAULT_SETTINGS: Omit<AiProviderSettings, 'apiKeyConfigured'> = {
   enabled: false,
@@ -76,15 +79,81 @@ function redactForAi(value: string) {
 function extractJson(text: string) {
   const trimmed = String(text ?? '').trim()
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)
-  const candidate = fenced ? fenced[1].trim() : trimmed
-  try {
-    return JSON.parse(candidate)
-  } catch {
-    const start = candidate.indexOf('{')
-    const end = candidate.lastIndexOf('}')
-    if (start >= 0 && end > start) return JSON.parse(candidate.slice(start, end + 1))
-    throw new Error('AI provider returned a response that is not valid JSON.')
+  const sources = [fenced?.[1], trimmed].filter((value): value is string => Boolean(value)).map(value => value.trim())
+
+  for (const source of sources) {
+    const candidates = [source]
+    const start = source.search(/[\[{]/)
+    const end = Math.max(source.lastIndexOf('}'), source.lastIndexOf(']'))
+    if (start >= 0 && end > start) candidates.push(source.slice(start, end + 1))
+
+    for (const candidate of candidates) {
+      for (const normalized of [candidate, candidate.replace(/,\s*([}\]])/g, '$1')]) {
+        try { return JSON.parse(normalized) }
+        catch { /* Try the next bounded candidate. */ }
+      }
+    }
   }
+
+  const preview = redactForAi(trimmed).replace(/\s+/g, ' ').slice(0, 240)
+  throw new Error(`AI provider returned a response that is not valid JSON.${preview ? ` Preview: ${preview}` : ''}`)
+}
+
+function providerErrorMessage(text: string) {
+  let value: any
+  try { value = JSON.parse(text) } catch { return String(text ?? '').trim() }
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const message = value?.error?.message
+    if (typeof message !== 'string') break
+    const nested = message.trim()
+    if (!nested.startsWith('{')) return nested
+    try { value = JSON.parse(nested) } catch { return nested }
+  }
+
+  return String(value?.error?.message ?? value?.message ?? '').trim()
+}
+
+function providerContentText(value: any): string {
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) return value.map(providerContentText).join('')
+  if (!value || typeof value !== 'object') return ''
+  if (typeof value.text === 'string') return value.text
+  if (typeof value.content === 'string' || Array.isArray(value.content)) return providerContentText(value.content)
+  return ''
+}
+
+function providerResponseContent(payload: any): string {
+  const candidates = [
+    payload?.choices?.[0]?.message?.content,
+    payload?.choices?.[0]?.message?.content?.text,
+    payload?.choices?.[0]?.text,
+    payload?.message?.content,
+    payload?.message?.content?.text,
+    payload?.response,
+    payload?.output_text,
+    payload?.content
+  ]
+  return candidates.map(providerContentText).find(value => value.trim())?.trim() ?? ''
+}
+
+function isOllamaBaseUrl(baseUrl: string): boolean {
+  try {
+    const url = new URL(baseUrl)
+    return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(url.hostname) && url.port === '11434'
+  } catch {
+    return false
+  }
+}
+
+function providerResponseShape(payload: any) {
+  if (!payload || typeof payload !== 'object') return typeof payload
+  const keys = Object.keys(payload).slice(0, 12)
+  const choices = Array.isArray(payload.choices) ? `, choices=${payload.choices.length}` : ''
+  const choice = payload.choices?.[0]
+  const choiceKeys = choice && typeof choice === 'object' ? `, choice keys=${Object.keys(choice).slice(0, 12).join(', ') || 'empty object'}` : ''
+  const finishReason = typeof choice?.finish_reason === 'string' ? `, finish_reason=${choice.finish_reason}` : ''
+  return `${keys.join(', ') || 'empty object'}${choices}${choiceKeys}${finishReason}`
 }
 
 function normalizeAnalysis(
@@ -229,7 +298,7 @@ class AiAnalysisService {
     const diagnostics = await dockerService.buildDiagnostics(ref)
     const apiKey = await this.readApiKey()
     const logs = this.settings.includeBuildLogs
-      ? redactForAi(diagnostics.logs).slice(-this.settings.maxLogChars)
+      ? redactForAi(diagnostics.logs).slice(-this.settings.maxLogChars).slice(-AI_ANALYSIS_LOG_CHAR_LIMIT)
       : ''
 
     const sanitizedFindings = diagnostics.findings.map(item => ({
@@ -271,7 +340,7 @@ class AiAnalysisService {
     const rawText = await this.chat(this.settings, apiKey, [
       { role:'system', content:system },
       { role:'user', content:JSON.stringify(prompt) }
-    ])
+    ], Math.min(this.settings.maxOutputTokens, AI_ANALYSIS_MAX_OUTPUT_TOKENS))
 
     const parsed = extractJson(rawText)
     return normalizeAnalysis(parsed, this.settings.model, sanitizedFindings.length, logs.length)
@@ -305,7 +374,7 @@ class AiAnalysisService {
     const logsResult = await dockerService.logs(containerId, 400)
     const rawLogs = [logsResult.stdout, logsResult.stderr].filter(Boolean).join('\n')
     const logs = this.settings.includeBuildLogs
-      ? redactForAi(rawLogs).slice(-this.settings.maxLogChars)
+      ? redactForAi(rawLogs).slice(-this.settings.maxLogChars).slice(-AI_ANALYSIS_LOG_CHAR_LIMIT)
       : ''
 
     const sanitizedFindings = advisor.findings.map(item => ({
@@ -341,8 +410,8 @@ class AiAnalysisService {
         restartCount:diagnostics.restartCount,
         stateError:redactForAi(diagnostics.stateError),
         restartPolicy:diagnostics.restartPolicy,
-        command:diagnostics.command.map(redactForAi),
-        entrypoint:diagnostics.entrypoint.map(redactForAi),
+      command:diagnostics.command.map(value => redactForAi(value).slice(0, 1000)),
+      entrypoint:diagnostics.entrypoint.map(value => redactForAi(value).slice(0, 1000)),
         workingDir:redactForAi(diagnostics.workingDir),
         environmentVariableNames:diagnostics.environment.map(value => String(value).split('=',1)[0]).filter(Boolean).slice(0, 200)
       },
@@ -355,9 +424,9 @@ class AiAnalysisService {
         interval:diagnostics.health.interval,
         timeout:diagnostics.health.timeout,
         startPeriod:diagnostics.health.startPeriod,
-        recentLogs:diagnostics.health.logs.slice(-6).map(item => ({
+        recentLogs:diagnostics.health.logs.slice(-3).map(item => ({
           exitCode:item.exitCode,
-          output:redactForAi(item.output).slice(0, 2000),
+          output:redactForAi(item.output).slice(0, AI_ANALYSIS_HEALTH_OUTPUT_CHAR_LIMIT),
           start:item.start,
           end:item.end
         }))
@@ -385,7 +454,7 @@ class AiAnalysisService {
     const rawText = await this.chat(this.settings, apiKey, [
       { role:'system', content:system },
       { role:'user', content:JSON.stringify(prompt) }
-    ])
+    ], Math.min(this.settings.maxOutputTokens, AI_ANALYSIS_MAX_OUTPUT_TOKENS))
     const parsed = extractJson(rawText)
     return normalizeContainerAnalysis(parsed, this.settings.model, triggerReasons, health, sanitizedFindings.length, logs.length)
   }
@@ -413,6 +482,8 @@ class AiAnalysisService {
           temperature:settings.temperature,
           max_tokens:maxTokens,
           stream:false,
+          ...(isOllamaBaseUrl(settings.baseUrl) ? { reasoning_effort:'none' } : {}),
+          ...(isOllamaBaseUrl(settings.baseUrl) ? { response_format:{ type:'json_object' } } : {}),
           messages
         })
       })
@@ -420,7 +491,7 @@ class AiAnalysisService {
       const text = await response.text()
       if (text.length > 2_000_000) throw new Error('AI provider response exceeded the 2 MB safety limit.')
       if (!response.ok) {
-        const redacted = redactForAi(text).slice(0, 3000)
+        const redacted = redactForAi(providerErrorMessage(text)).slice(0, 1000)
         throw new Error(`AI provider returned HTTP ${response.status}${redacted ? `: ${redacted}` : ''}`)
       }
 
@@ -428,9 +499,11 @@ class AiAnalysisService {
       try { payload = JSON.parse(text) }
       catch { throw new Error('AI provider returned invalid JSON.') }
 
-      const content = payload?.choices?.[0]?.message?.content
-      if (typeof content !== 'string' || !content.trim()) {
-        throw new Error('AI provider response did not contain choices[0].message.content.')
+      const content = providerResponseContent(payload)
+      if (!content.trim()) {
+        const providerMessage = providerErrorMessage(text)
+        if (providerMessage) throw new Error(`AI provider error: ${redactForAi(providerMessage).slice(0, 1000)}`)
+        throw new Error(`AI provider response did not contain usable text content (response keys: ${providerResponseShape(payload)}).`)
       }
       return content.trim()
     } catch (error: any) {

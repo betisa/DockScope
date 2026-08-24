@@ -2,14 +2,29 @@
 
 All notable changes to DockScope Desktop are documented here.
 
+## [1.1.0] - 2026-08-25
+
+### Added
+- Uptime Reports with searchable container/Compose monitors, live status bars, runtime history, 24-hour/30-day metrics, and persisted samples.
+- Independent Runtime Uptime dashboard widget with customizable placement and visibility.
+- Copy all, selected-text copy from the context menu, and export actions for colored logs in Container Workspace, Compose Workspace, and Build Diagnostics.
+- Build Diagnostics Steps timeline with status-specific semantic icons for completed, cached, running, and failed steps.
+
+### Changed
+- Operational Intelligence now opens from a Dashboard side drawer; notification policy controls remain centralized in Settings.
+- Live uptime for running Docker containers and Compose services now uses Docker-reported runtime start timestamps.
+- Container and Compose diagnostics/statistics parsing is resilient to the returned Docker response shapes and refreshes live data correctly.
+- Container failure analysis bounds log/evidence size and supports OpenAI-compatible and Ollama response formats with structured JSON output.
+- Windows CI now runs on version-tag pushes (`v*`) instead of direct pushes to `main` or `develop`.
+
+### Fixed
+- Restored Container Workspace diagnostics and AI failure analysis output.
+- Restored Compose Workspace live statistics when Docker returns JSON or JSON-lines payloads.
+- Prevented oversized AI analysis requests from exceeding small local model context windows.
+
 ## [1.0.0] - 2026-08-21
 
 ### Added
-- Windows CI now runs on version tag pushes (`v*`) instead of direct pushes to `main` or `develop`.
-- Operational Intelligence now opens from a Dashboard icon in a side drawer; duplicate alert-policy controls were removed from the notification view and Settings is the sole policy source.
-- Uptime Reports page inspired by Uptime Kuma: searchable container/Compose monitor list, live status bars, runtime history chart, 24-hour/30-day uptime metrics, and persisted status samples.
-- Independent Runtime Uptime dashboard widget combining live Docker container and Compose service uptime with customizable placement and visibility.
-- Live uptime for running Docker containers and Compose services, backed by Docker runtime start timestamps and refreshed in the renderer.
 - Build History Diagnostics modal: BuildKit Diagnostics now opens in an accessible modal with the existing Overview/Logs/Steps/Cache/Timing/Error Analysis tabs instead of an inline workspace.
 - Unified Images & Image Intelligence: removed the standalone Image Intelligence page and moved analysis into an accessible modal launched from each Images row; Resource Graph and Command Palette image deep-links now open that modal.
 - About / Updates / Release Channel: runtime app/Electron/Node/Chromium/Docker versions, bundled/remote release notes, Stable/Preview channel, explicit update check/download/progress/install and NSIS/Portable safety handling.
