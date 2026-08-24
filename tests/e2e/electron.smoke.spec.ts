@@ -108,7 +108,7 @@ test('dashboard renders live Docker charts from mocked Docker data', async () =>
   try {
     const window = await app.firstWindow()
     await expect(window.getByRole('img', { name: /Images: .* allocated/i })).toBeVisible()
-    await expect(window.getByRole('img', { name: /containers:/i })).toBeVisible()
+    await expect(window.getByRole('img', { name: /^\d+ containers:/i })).toBeVisible()
     await expect(window.getByText('Allocated vs reclaimable')).toBeVisible()
     await expect(window.getByText('Container states')).toBeVisible()
   } finally {
