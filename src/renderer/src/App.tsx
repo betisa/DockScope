@@ -213,13 +213,13 @@ export function App() {
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <LiveRegion message={announcement} />
 
-      <aside className="sidebar" aria-label="Primary navigation">
+      <aside className="sidebar" aria-label="DockScope sidebar">
         <div className="brand">
           <div className="brand-mark"><img src={appIconUrl} alt="" aria-hidden="true" /></div>
           <div><strong>DockScope</strong><span>Docker Operations & Intelligence</span></div>
         </div>
 
-        <nav className="nav">
+        <nav className="nav" aria-label="Primary navigation">
           {NAV_ITEMS.map(item => {
             const group = item.group !== lastGroup ? item.group : ''
             lastGroup = item.group

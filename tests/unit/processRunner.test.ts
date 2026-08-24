@@ -1,10 +1,19 @@
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { run } from '../../src/main/services/processRunner'
+import { resolveCommand, run } from '../../src/main/services/processRunner'
 
 const mock = path.resolve('tests/mock/docker-cli.mjs')
 
 describe('processRunner', () => {
+
+  it('runs Docker mock scripts in Electron using ELECTRON_RUN_AS_NODE', () => {
+    process.env.DSM_DOCKER_MOCK_SCRIPT = mock
+    const resolved = resolveCommand('docker', ['version'])
+    expect(resolved.command).toBe(process.execPath)
+    expect(resolved.args).toEqual([mock, 'version'])
+    expect(resolved.env?.ELECTRON_RUN_AS_NODE).toBe('1')
+  })
+
   it('captures stdout and exit code', async () => {
     process.env.DSM_DOCKER_MOCK_SCRIPT = mock
     const result = await run('docker', ['version', '--format', '{{.Server.Version}}'])
