@@ -25,11 +25,9 @@ describe('Container File Browser', () => {
     expect(ipc).toContain("parts.some(part => part === '..')")
   })
 
-  it('keeps directory browse shell source fixed and passes path through an environment variable', () => {
-    expect(service).toContain("'-e', `DSM_PATH=${target}`")
-    expect(service).toContain("'sh', '-c', script")
-    expect(service).toContain('p="$DSM_PATH"')
-    expect(service).not.toContain('sh`, `-c`, `${target}')
+  it('reads the container archive through Docker instead of requiring a shell', () => {
+    expect(service).toContain("run('docker', ['cp', `${id}:${target}`, payloadPath])")
+    expect(service).toContain('fs.readdir(staged.payloadPath)')
   })
 
   it('bounds text preview and prevents truncated-file save in UI', () => {
@@ -82,7 +80,10 @@ describe('Container File Browser', () => {
   it('adds a Files tab to Container Workspace with required user actions', () => {
     expect(workspace).toContain("'files'")
     expect(workspace).toContain('<ContainerFileBrowser')
-    expect(browser).toContain('Upload…')
+    expect(browser).toContain('Upload')
+    expect(browser).toContain('Folder02Icon')
+    expect(browser).toContain('GridViewIcon')
+    expect(browser).toContain('ListViewIcon')
     expect(browser).toContain('Copy path')
     expect(browser).toContain('Download')
     expect(browser).toContain('Save text…')

@@ -38,13 +38,13 @@ Container paths must:
 
 ## Directory Browse
 
-Directory listing uses a fixed shell script executed through:
+Directory listing stages the requested path through Docker's container copy API:
 
 ```text
-docker container exec -e DSM_PATH=<validated path> <container> sh -c <fixed script>
+docker cp <container>:<validated path> <temporary staging directory>
 ```
 
-The requested path is passed as an environment variable rather than interpolated into shell source.
+The staging directory is owned by Main, removed after metadata extraction, and is never exposed to the Renderer. This works for running and stopped containers and does not require a shell or POSIX utilities inside the image.
 
 The script reports:
 

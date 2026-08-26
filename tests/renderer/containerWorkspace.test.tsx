@@ -95,6 +95,9 @@ describe('ContainerWorkspace', () => {
       value: {
         containers: {
           diagnostics: vi.fn().mockRejectedValue(new Error('Docker inspect failed'))
+        },
+        streams: {
+          startContainerStats: vi.fn().mockRejectedValue(new Error('stats unavailable'))
         }
       }
     })
@@ -103,8 +106,8 @@ describe('ContainerWorkspace', () => {
 
     await waitFor(() => expect(screen.getByText('Could not load container details')).toBeInTheDocument())
     expect(screen.getByText('Docker inspect failed')).toBeInTheDocument()
-    expect(screen.getByText('running')).toBeInTheDocument()
-    expect(screen.getAllByText('my-api:latest')).toHaveLength(2)
+    expect(screen.getAllByText('running')).toHaveLength(2)
+    expect(screen.getAllByText('my-api:latest')).toHaveLength(3)
   })
 
   it('renders the workspace as a modal and closes on Escape', () => {
@@ -114,7 +117,7 @@ describe('ContainerWorkspace', () => {
       value: { containers: { diagnostics: vi.fn().mockResolvedValue(healthyDiagnostics) } }
     })
 
-    render(<ContainerWorkspace container={container} initialTab="overview" onClose={onClose} />)
+    render(<ContainerWorkspace container={container} initialTab="health" onClose={onClose} />)
 
     expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true')
     fireEvent.keyDown(window, { key: 'Escape' })

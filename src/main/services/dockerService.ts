@@ -1,5 +1,6 @@
 import { run } from './processRunner'
 import { promises as fs } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type {
@@ -464,30 +465,32 @@ function parentContainerPath(value: string) {
   return index <= 0 ? '/' : safe.slice(0, index)
 }
 
-function parseFileBrowserRows(raw: string): ContainerFileEntry[] {
-  return raw
-    .split(/\r?\n/)
-    .map(line => line.trimEnd())
-    .filter(Boolean)
-    .map(line => {
-      const [type, size, permissions, owner, group, modifiedAt, symlinkTarget, ...nameParts] = line.split('\t')
-      const name = nameParts.join('\t')
-      const entryType: ContainerFileEntry['type'] =
-        type === 'directory' ? 'directory' :
-        type === 'file' ? 'file' :
-        type === 'symlink' ? 'symlink' : 'other'
-      return {
-        name,
-        path: '',
-        type: entryType,
-        sizeBytes: Math.max(0, Number(size) || 0),
-        permissions: permissions ?? '',
-        owner: owner ?? '',
-        group: group ?? '',
-        modifiedAt: modifiedAt ?? '',
-        symlinkTarget: symlinkTarget ?? ''
-      }
-    })
+function formatFilePermissions(mode: number, type: ContainerFileEntry['type']) {
+  const bits = mode & 0o777
+  const flags = ['r', 'w', 'x']
+  let permissions = type === 'directory' ? 'd' : type === 'symlink' ? 'l' : '-'
+  for (let index = 0; index < 9; index++) {
+    permissions += (bits & (1 << (8 - index))) ? flags[index % 3] : '-'
+  }
+  return permissions
+}
+
+function fileEntryType(stat: Awaited<ReturnType<typeof fs.lstat>>): ContainerFileEntry['type'] {
+  if (stat.isSymbolicLink()) return 'symlink'
+  if (stat.isDirectory()) return 'directory'
+  if (stat.isFile()) return 'file'
+  return 'other'
+}
+
+async function stageContainerPath(id: string, target: string) {
+  const temporaryDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'dsm-container-files-'))
+  const payloadPath = path.join(temporaryDirectory, 'payload')
+  const result = await run('docker', ['cp', `${id}:${target}`, payloadPath])
+  if (!result.ok) {
+    await fs.rm(temporaryDirectory, { recursive: true, force: true }).catch(() => undefined)
+    throw new Error(result.stderr || 'Unable to read container filesystem.')
+  }
+  return { temporaryDirectory, payloadPath }
 }
 
 function redactDiagnosticEvidence(value: string) {
@@ -1018,48 +1021,38 @@ export const dockerService = {
       .filter(item => target === item.destination || target.startsWith(`${item.destination.replace(/\/+$/, '')}/`))
       .sort((left, right) => right.destination.length - left.destination.length)[0]
 
-    const script = [
-      'p="$DSM_PATH"',
-      'test -d "$p" || { echo "DSM_NOT_DIRECTORY" >&2; exit 44; }',
-      'for f in "$p"/* "$p"/.[!.]* "$p"/..?*; do',
-      '  [ -e "$f" ] || [ -L "$f" ] || continue',
-      '  n="${f##*/}"',
-      '  [ "$n" = "." ] && continue',
-      '  [ "$n" = ".." ] && continue',
-      '  if [ -L "$f" ]; then t=symlink; link="$(readlink "$f" 2>/dev/null || true)";',
-      '  elif [ -d "$f" ]; then t=directory; link="";',
-      '  elif [ -f "$f" ]; then t=file; link="";',
-      '  else t=other; link=""; fi',
-      '  size="$(wc -c < "$f" 2>/dev/null || echo 0)"',
-      '  perm="$(ls -ld "$f" 2>/dev/null | awk \'{print $1}\')"',
-      '  own="$(ls -ld "$f" 2>/dev/null | awk \'{print $3}\')"',
-      '  grp="$(ls -ld "$f" 2>/dev/null | awk \'{print $4}\')"',
-      '  mod="$(date -r "$f" -Iseconds 2>/dev/null || true)"',
-      '  printf "%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n" "$t" "$size" "$perm" "$own" "$grp" "$mod" "$link" "$n"',
-      'done'
-    ].join('\n')
+    const staged = await stageContainerPath(id, target)
+    let entries: ContainerFileEntry[]
+    try {
+      const rootStat = await fs.lstat(staged.payloadPath)
+      if (!rootStat.isDirectory()) throw new Error('The selected container path is not a directory.')
 
-    const result = await run('docker', [
-      'container', 'exec',
-      '-e', `DSM_PATH=${target}`,
-      id,
-      'sh', '-c', script
-    ])
-    if (!result.ok) {
-      if (/DSM_NOT_DIRECTORY/.test(result.stderr)) throw new Error('The selected container path is not a directory.')
-      throw new Error(result.stderr || 'Unable to browse container filesystem.')
+      const names = await fs.readdir(staged.payloadPath)
+      entries = await Promise.all(names.map(async name => {
+        const localPath = path.join(staged.payloadPath, name)
+        const stat = await fs.lstat(localPath)
+        const type = fileEntryType(stat)
+        return {
+          name,
+          path: target === '/' ? `/${name}` : `${target}/${name}`,
+          type,
+          sizeBytes: stat.isFile() ? stat.size : 0,
+          permissions: formatFilePermissions(stat.mode, type),
+          owner: '',
+          group: '',
+          modifiedAt: stat.mtime.toISOString(),
+          symlinkTarget: type === 'symlink' ? await fs.readlink(localPath).catch(() => '') : ''
+        }
+      }))
+    } finally {
+      await fs.rm(staged.temporaryDirectory, { recursive: true, force: true }).catch(() => undefined)
     }
 
-    const entries = parseFileBrowserRows(result.stdout)
-      .map(entry => ({
-        ...entry,
-        path: target === '/' ? `/${entry.name}` : `${target}/${entry.name}`
-      }))
-      .sort((left, right) => {
-        if (left.type === 'directory' && right.type !== 'directory') return -1
-        if (left.type !== 'directory' && right.type === 'directory') return 1
-        return left.name.localeCompare(right.name)
-      })
+    entries.sort((left, right) => {
+      if (left.type === 'directory' && right.type !== 'directory') return -1
+      if (left.type !== 'directory' && right.type === 'directory') return 1
+      return left.name.localeCompare(right.name)
+    })
 
     return {
       path: target,
@@ -1083,34 +1076,30 @@ export const dockerService = {
       .sort((left, right) => right.destination.length - left.destination.length)[0]
 
     const MAX_TEXT_BYTES = 1_000_000
-    const script = [
-      'p="$DSM_PATH"',
-      'test -f "$p" || { echo "DSM_NOT_FILE" >&2; exit 45; }',
-      'size="$(wc -c < "$p" 2>/dev/null || echo 0)"',
-      'printf "DSM_SIZE=%s\\n" "$size"',
-      `head -c ${MAX_TEXT_BYTES + 1} "$p"`
-    ].join('\n')
-
-    const result = await run('docker', [
-      'container', 'exec',
-      '-e', `DSM_PATH=${target}`,
-      id,
-      'sh', '-c', script
-    ])
-    if (!result.ok) {
-      if (/DSM_NOT_FILE/.test(result.stderr)) throw new Error('The selected container path is not a regular file.')
-      throw new Error(result.stderr || 'Unable to read container file.')
+    const staged = await stageContainerPath(id, target)
+    let stat: Awaited<ReturnType<typeof fs.lstat>>
+    let content = ''
+    try {
+      stat = await fs.lstat(staged.payloadPath)
+      if (!stat.isFile()) throw new Error('The selected container path is not a regular file.')
+      const handle = await fs.open(staged.payloadPath, 'r')
+      try {
+        const buffer = Buffer.alloc(Math.min(stat.size, MAX_TEXT_BYTES + 1))
+        const result = await handle.read(buffer, 0, buffer.length, 0)
+        content = buffer.subarray(0, result.bytesRead).toString('utf8')
+      } finally {
+        await handle.close()
+      }
+    } finally {
+      await fs.rm(staged.temporaryDirectory, { recursive: true, force: true }).catch(() => undefined)
     }
 
-    const newline = result.stdout.indexOf('\n')
-    const header = newline >= 0 ? result.stdout.slice(0, newline) : ''
-    const content = newline >= 0 ? result.stdout.slice(newline + 1) : ''
-    const sizeBytes = Number(header.replace(/^DSM_SIZE=/, '')) || Buffer.byteLength(content, 'utf8')
-    const truncated = Buffer.byteLength(content, 'utf8') > MAX_TEXT_BYTES
+    const sizeBytes = stat!.size
+    const truncated = sizeBytes > MAX_TEXT_BYTES
 
     return {
       path: target,
-      content: truncated ? content.slice(0, MAX_TEXT_BYTES) : content,
+      content: truncated ? Buffer.from(content, 'utf8').subarray(0, MAX_TEXT_BYTES).toString('utf8') : content,
       sizeBytes,
       truncated,
       encoding: 'utf-8',

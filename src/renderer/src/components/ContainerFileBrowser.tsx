@@ -1,6 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ContainerDirectoryListing, ContainerFileEntry, ContainerTextFile } from '../../../shared/contracts'
 import { Badge, EmptyState, InlineAlert, LoadingState } from './ui'
+import { AppIcon } from './Icon'
+import {
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+  ArrowUp01Icon,
+  Copy01Icon,
+  Download04Icon,
+  File01Icon,
+  Folder02Icon,
+  FolderOpenIcon,
+  GridViewIcon,
+  Home01Icon,
+  Link01Icon,
+  ListViewIcon,
+  RefreshIcon,
+  Search01Icon,
+  Upload04Icon
+} from '@hugeicons/core-free-icons'
 
 export function ContainerFileBrowser({
   containerId,
@@ -14,7 +32,11 @@ export function ContainerFileBrowser({
   const [path, setPath] = useState(initialPath || '/')
   const [address, setAddress] = useState(initialPath || '/')
   const [listing, setListing] = useState<ContainerDirectoryListing | null>(null)
+  const [rootListing, setRootListing] = useState<ContainerDirectoryListing | null>(null)
   const [selected, setSelected] = useState<ContainerFileEntry | null>(null)
+  const [recentEntries, setRecentEntries] = useState<ContainerFileEntry[]>([])
+  const [search, setSearch] = useState('')
+  const [view, setView] = useState<'grid' | 'list'>('grid')
   const [textFile, setTextFile] = useState<ContainerTextFile | null>(null)
   const [editorValue, setEditorValue] = useState('')
   const [dirty, setDirty] = useState(false)
@@ -28,7 +50,6 @@ export function ContainerFileBrowser({
   const selectedWriteBlocked = Boolean(textFile?.mountDestination) && !textFile?.writableMount
 
   const loadDirectory = async (nextPath: string) => {
-    if (!running) return
     setLoading(true)
     setError('')
     setMessage('')
@@ -37,6 +58,7 @@ export function ContainerFileBrowser({
       setListing(next)
       setPath(next.path)
       setAddress(next.path)
+      setSearch('')
       setSelected(null)
       setTextFile(null)
       setEditorValue('')
@@ -49,13 +71,15 @@ export function ContainerFileBrowser({
   }
 
   useEffect(() => {
-    if (running) void loadDirectory(initialPath || '/')
+    void loadDirectory(initialPath || '/')
+    void window.dockerApi.containers.files.list(containerId, '/').then(setRootListing).catch(() => setRootListing(null))
   }, [containerId, running])
 
   const openEntry = async (entry: ContainerFileEntry) => {
     setSelected(entry)
     setMessage('')
     setError('')
+    setRecentEntries(old => [entry, ...old.filter(item => item.path !== entry.path)].slice(0, 6))
 
     if (entry.type === 'directory') {
       await loadDirectory(entry.path)
@@ -148,22 +172,24 @@ export function ContainerFileBrowser({
     return rows
   }, [path])
 
-  if (!running) {
-    return (
-      <div>
-        <InlineAlert tone="warning" title="File browsing requires a running container">
-          Container File Browser uses a fixed read-only shell script for directory enumeration. Start the container to browse or view files.
-        </InlineAlert>
-        <EmptyState
-          title="Container is stopped"
-          text="Start the container and reopen Files. Download through docker cp can work for stopped containers, but directory browsing is intentionally unavailable here."
-        />
-      </div>
-    )
-  }
+  const visibleEntries = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    if (!query) return listing?.entries ?? []
+    return (listing?.entries ?? []).filter(entry => `${entry.name} ${entry.path}`.toLowerCase().includes(query))
+  }, [listing, search])
+
+  const rootDirectories = useMemo(
+    () => (rootListing?.entries ?? []).filter(entry => entry.type === 'directory'),
+    [rootListing]
+  )
 
   return (
     <div className="container-file-browser">
+      {!running && (
+        <InlineAlert tone="warning" title="Container is stopped">
+          Files can still be browsed and downloaded from stopped containers through Docker. Start the container to upload files or save text changes.
+        </InlineAlert>
+      )}
       <div className="file-browser-security-banner">
         <strong>Guarded filesystem access.</strong>
         <span>
@@ -172,42 +198,42 @@ export function ContainerFileBrowser({
       </div>
 
       <div className="file-browser-toolbar">
-        <div className="file-browser-address">
-          <button
-            className="button secondary"
-            disabled={path === '/' || loading}
-            onClick={() => listing && void loadDirectory(listing.parentPath)}
-            aria-label="Go to parent directory"
-          >
-            Up
+        <div className="file-browser-navigation">
+          <button className="file-browser-icon-button" disabled={path === '/' || loading} onClick={() => listing && void loadDirectory(listing.parentPath)} aria-label="Go to parent directory" title="Go to parent directory">
+            <AppIcon icon={ArrowLeft01Icon} />
           </button>
-          <input
-            value={address}
-            onChange={event => setAddress(event.target.value)}
-            onKeyDown={event => {
-              if (event.key === 'Enter') void loadDirectory(address)
-            }}
-            aria-label="Container filesystem path"
-            spellCheck={false}
-          />
-          <button className="button secondary" disabled={loading} onClick={() => void loadDirectory(address)}>Go</button>
-          <button className="button secondary" disabled={loading} onClick={refresh}>Refresh</button>
+          <button className="file-browser-icon-button" disabled aria-label="Go forward" title="Go forward">
+            <AppIcon icon={ArrowRight01Icon} />
+          </button>
+          <button className="file-browser-icon-button" disabled={path === '/' || loading} onClick={() => listing && void loadDirectory(listing.parentPath)} aria-label="Go up one directory" title="Go up one directory">
+            <AppIcon icon={ArrowUp01Icon} />
+          </button>
+          <button className="file-browser-icon-button" disabled={loading} onClick={refresh} aria-label="Refresh directory" title="Refresh directory">
+            <AppIcon icon={RefreshIcon} />
+          </button>
         </div>
-        <div className="inline-actions">
+        <div className="file-browser-address">
+          <AppIcon icon={FolderOpenIcon} size={15} />
+          <input value={address} onChange={event => setAddress(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void loadDirectory(address) }} aria-label="Container filesystem path" spellCheck={false} />
+          <button className="button secondary" disabled={loading} onClick={() => void loadDirectory(address)}>Go</button>
+        </div>
+        <div className="file-browser-toolbar-actions">
+          <label className="file-browser-search">
+            <AppIcon icon={Search01Icon} size={15} />
+            <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search files…" aria-label="Search files" />
+          </label>
+          <div className="file-browser-view-switcher" role="group" aria-label="File view">
+            <button className={view === 'grid' ? 'active' : ''} onClick={() => setView('grid')} aria-pressed={view === 'grid'} aria-label="Grid view" title="Grid view"><AppIcon icon={GridViewIcon} size={15} /></button>
+            <button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')} aria-pressed={view === 'list'} aria-label="List view" title="List view"><AppIcon icon={ListViewIcon} size={15} /></button>
+          </div>
           <button
             className="button secondary"
-            disabled={mutating || writeBlocked}
+             disabled={mutating || writeBlocked || !running}
             onClick={() => void upload()}
             title={writeBlocked ? 'Upload is blocked inside a read-only mount.' : 'Choose a local file and confirm upload in the system dialog.'}
           >
-            Upload…
-          </button>
-          <button
-            className="button secondary"
-            disabled={!selected}
-            onClick={() => selected && void navigator.clipboard.writeText(selected.path)}
-          >
-            Copy path
+            <AppIcon icon={Upload04Icon} size={15} />
+            Upload
           </button>
         </div>
       </div>
@@ -234,19 +260,42 @@ export function ContainerFileBrowser({
       {message && <div className="file-browser-status" role="status">{message}</div>}
 
       <div className="file-browser-layout">
+        <aside className="card file-browser-sidebar" aria-label="File browser navigation">
+          <section className="file-browser-sidebar-section">
+            <div className="file-browser-sidebar-label">Recent</div>
+            {recentEntries.length ? recentEntries.map(entry => <button key={`recent-${entry.path}`} className="file-browser-sidebar-item" onClick={() => void openEntry(entry)}><AppIcon icon={entry.type === 'directory' ? Folder02Icon : File01Icon} size={14} /><span>{entry.name}</span></button>) : <span className="file-browser-sidebar-empty">No recent files</span>}
+          </section>
+          <section className="file-browser-sidebar-section">
+            <div className="file-browser-sidebar-label">Folder shortcuts</div>
+            <button className="file-browser-sidebar-item" onClick={() => void loadDirectory('/')}><AppIcon icon={Home01Icon} size={14} /><span>Root filesystem</span></button>
+            {initialPath && initialPath !== '/' && <button className="file-browser-sidebar-item" onClick={() => void loadDirectory(initialPath)}><AppIcon icon={FolderOpenIcon} size={14} /><span>{initialPath}</span></button>}
+          </section>
+          <section className="file-browser-sidebar-section file-browser-directories">
+            <div className="file-browser-sidebar-label">Directories</div>
+            {rootDirectories.length ? rootDirectories.map(entry => <button key={entry.path} className={`file-browser-sidebar-item ${path === entry.path ? 'active' : ''}`} onClick={() => void loadDirectory(entry.path)}><AppIcon icon={Folder02Icon} size={14} /><span>{entry.name}</span></button>) : <span className="file-browser-sidebar-empty">Loading directories…</span>}
+          </section>
+        </aside>
         <section className="card file-browser-list-panel">
           <div className="section-row compact">
             <div>
               <div className="eyebrow">Filesystem</div>
               <h3>{path}</h3>
             </div>
-            {listing && <Badge tone="neutral">{listing.entries.length} entries</Badge>}
+            <div className="file-browser-list-meta">{listing && <Badge tone="neutral">{visibleEntries.length} items</Badge>}<button className="button secondary" disabled={!selected} onClick={() => selected && void navigator.clipboard.writeText(selected.path)}><AppIcon icon={Copy01Icon} size={14} />Copy path</button></div>
           </div>
 
           {loading ? (
             <LoadingState label="Reading container directory" rows={8} />
-          ) : !listing?.entries.length ? (
+          ) : !visibleEntries.length ? (
             <EmptyState title="Directory is empty" text="No visible filesystem entries were returned for this path." />
+          ) : view === 'grid' ? (
+            <div className="file-browser-grid" aria-label="Container files">
+              {visibleEntries.map(entry => <button key={entry.path} className={`file-browser-tile ${entry.type} ${selected?.path === entry.path ? 'selected' : ''}`} onClick={() => void openEntry(entry)} title={entry.path}>
+                <AppIcon icon={entry.type === 'directory' ? Folder02Icon : entry.type === 'symlink' ? Link01Icon : File01Icon} size={32} />
+                <strong>{entry.name}</strong>
+                <small>{entry.type === 'directory' ? 'Directory' : formatBytes(entry.sizeBytes)}</small>
+              </button>)}
+            </div>
           ) : (
             <div className="file-browser-table-wrap">
               <table className="file-browser-table">
@@ -261,16 +310,16 @@ export function ContainerFileBrowser({
                   </tr>
                 </thead>
                 <tbody>
-                  {listing.entries.map(entry => (
+                  {visibleEntries.map(entry => (
                     <tr
                       key={entry.path}
                       className={selected?.path === entry.path ? 'selected-row' : ''}
                       onDoubleClick={() => void openEntry(entry)}
                     >
                       <td>
-                        <button className="file-entry-name" onClick={() => void openEntry(entry)}>
+                          <button className="file-entry-name" onClick={() => void openEntry(entry)}>
                           <span className={`file-entry-icon ${entry.type}`} aria-hidden="true">
-                            {entry.type === 'directory' ? '▣' : entry.type === 'symlink' ? '↗' : '▤'}
+                            <AppIcon icon={entry.type === 'directory' ? Folder02Icon : entry.type === 'symlink' ? Link01Icon : File01Icon} size={17} />
                           </span>
                           <span>
                             <strong>{entry.name}</strong>
@@ -285,7 +334,7 @@ export function ContainerFileBrowser({
                       <td>
                         <div className="inline-actions">
                           <button className="link-button" onClick={() => void navigator.clipboard.writeText(entry.path)}>Copy path</button>
-                          {entry.type === 'file' && <button className="link-button" onClick={() => void download(entry)}>Download</button>}
+                          {entry.type === 'file' && <button className="link-button" onClick={() => void download(entry)}><AppIcon icon={Download04Icon} size={13} />Download</button>}
                         </div>
                       </td>
                     </tr>
@@ -320,8 +369,8 @@ export function ContainerFileBrowser({
                   <Badge tone={textFile.truncated ? 'warn' : 'info'}>
                     {textFile.truncated ? 'Preview truncated' : formatBytes(textFile.sizeBytes)}
                   </Badge>
-                  <button className="button secondary" onClick={() => void navigator.clipboard.writeText(textFile.path)}>Copy path</button>
-                  <button className="button secondary" disabled={mutating} onClick={() => void download(selected)}>Download</button>
+                  <button className="button secondary" onClick={() => void navigator.clipboard.writeText(textFile.path)}><AppIcon icon={Copy01Icon} size={14} />Copy path</button>
+                  <button className="button secondary" disabled={mutating} onClick={() => void download(selected)}><AppIcon icon={Download04Icon} size={14} />Download</button>
                 </div>
               </div>
 
@@ -358,7 +407,7 @@ export function ContainerFileBrowser({
                 </div>
                 <button
                   className="button danger"
-                  disabled={!dirty || mutating || textFile.truncated || selectedWriteBlocked}
+                   disabled={!dirty || mutating || textFile.truncated || selectedWriteBlocked || !running}
                   onClick={() => void saveText()}
                 >
                   {mutating ? 'Saving…' : 'Save text…'}

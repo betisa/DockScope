@@ -8,11 +8,12 @@ import { TerminalPane } from './TerminalPane'
 import { ContainerAdvisorPanel } from './ContainerAdvisorPanel'
 import { ContainerFileBrowser } from './ContainerFileBrowser'
 
-type Tab = 'advisor'|'overview'|'logs'|'stats'|'processes'|'health'|'ports'|'mounts'|'networks'|'environment'|'files'|'inspect'|'terminal'
-const tabs: Tab[] = ['advisor','overview','logs','stats','processes','health','ports','mounts','networks','environment','files','inspect','terminal']
+type Tab = 'advisor'|'logs'|'stats'|'processes'|'health'|'ports'|'mounts'|'networks'|'environment'|'files'|'inspect'|'terminal'
+const tabs: Tab[] = ['advisor','stats','logs','processes','health','ports','mounts','networks','environment','files','inspect','terminal']
 
 export function ContainerWorkspace({ container, onClose, initialTab }: { container: ContainerInfo; onClose: () => void; initialTab?: string }) {
-  const requestedTab = tabs.includes(initialTab as Tab) ? initialTab as Tab : undefined
+  const normalizedInitialTab = initialTab === 'overview' ? 'stats' : initialTab
+  const requestedTab = tabs.includes(normalizedInitialTab as Tab) ? normalizedInitialTab as Tab : undefined
   const [tab, setTab] = useState<Tab>(() => requestedTab ?? preferredWorkspaceTab(container))
   const tabManuallySelected = useRef(Boolean(requestedTab))
   const [diag, setDiag] = useState<ContainerDiagnostics | null>(null)
@@ -75,16 +76,15 @@ export function ContainerWorkspace({ container, onClose, initialTab }: { contain
         </div>
         <div className="workspace-body">
           {tab === 'advisor' && <ContainerAdvisorPanel containerId={container.id} />}
-          {tab === 'overview' && <Overview container={container} diag={diag} diagError={diagError} />}
+          {tab === 'stats' && <OverviewStats container={container} diag={diag} diagError={diagError} />}
           {tab === 'logs' && <LiveLogsPanel containerId={container.id} />}
-          {tab === 'stats' && <LiveStatsPanel containerId={container.id} startedAt={diag?.startedAt || container.startedAt} containerName={container.name} image={container.image} containerState={diag?.state || container.state} />}
           {tab === 'processes' && <Processes rows={processes} />}
           {tab === 'health' && <Health diag={diag} />}
           {tab === 'ports' && <Ports diag={diag} />}
           {tab === 'mounts' && <Mounts diag={diag} />}
           {tab === 'networks' && <Networks diag={diag} />}
           {tab === 'environment' && <Environment diag={diag} />}
-          {tab === 'files' && <ContainerFileBrowser containerId={container.id} running={container.state === 'running'} initialPath={diag?.workingDir || '/'} />}
+          {tab === 'files' && <ContainerFileBrowser containerId={container.id} running={container.state === 'running'} initialPath="/" />}
           {tab === 'inspect' && <CodePanel title="docker inspect --size" value={inspect} />}
           {tab === 'terminal' && <TerminalPane containerId={container.id} running={container.state === 'running'} />}
         </div>
@@ -92,6 +92,16 @@ export function ContainerWorkspace({ container, onClose, initialTab }: { contain
     </div>,
     document.body
   )
+}
+
+function OverviewStats({ container, diag, diagError }: { container: ContainerInfo; diag: ContainerDiagnostics|null; diagError: string }) {
+  return <div className="overview-stats-panel">
+    <LiveStatsPanel containerId={container.id} startedAt={diag?.startedAt || container.startedAt} containerName={container.name} image={container.image} containerState={diag?.state || container.state} />
+    <section className="overview-summary-strip">
+      <div className="overview-summary-heading"><div><div className="eyebrow">Container overview</div><strong>Inspect snapshot</strong></div><span>RUNTIME DETAILS</span></div>
+      <Overview container={container} diag={diag} diagError={diagError} />
+    </section>
+  </div>
 }
 
 function title(x: string) { return x.charAt(0).toUpperCase()+x.slice(1) }
@@ -110,7 +120,7 @@ function Overview({ container, diag, diagError }: { container: ContainerInfo; di
   if (!diag && diagError) {
     return <div>
       <InlineAlert tone="danger" title="Could not load container details">{diagError}</InlineAlert>
-      <div className="diagnostic-grid">
+      <div className="diagnostic-grid overview-diagnostic-grid">
         <Info label="State" value={container.state} />
         <Info label="Status" value={container.status || '—'} />
         <Info label="Image" value={container.image || '—'} />
@@ -119,7 +129,7 @@ function Overview({ container, diag, diagError }: { container: ContainerInfo; di
     </div>
   }
   if (!diag) return <EmptyState title="Loading diagnostics" text="Reading Docker inspect metadata…" />
-  return <div className="diagnostic-grid">
+  return <div className="diagnostic-grid overview-diagnostic-grid">
     <Info label="State" value={diag.state} /><Info label="Health" value={diag.health.status} /><Info label="Platform" value={diag.platform || '—'} /><Info label="Restart policy" value={diag.restartPolicy} />
     <Info label="Exit code" value={String(diag.exitCode)} /><Info label="Restarts" value={String(diag.restartCount)} /><Info label="OOM killed" value={diag.oomKilled ? 'Yes' : 'No'} /><Info label="Created" value={diag.created} /><Info label="Started" value={diag.startedAt} /><Info label="Working directory" value={diag.workingDir || '—'} /><Info label="Command" value={[...diag.entrypoint,...diag.command].join(' ') || '—'} />
   </div>

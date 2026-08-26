@@ -24,9 +24,10 @@ describe('P13.02 Container Diagnostics Advisor', () => {
   })
 
   it('selects Stats for healthy containers and Advisor for runtime failures', () => {
-    expect(workspace).toContain("const tabs: Tab[] = ['advisor','overview'")
+    expect(workspace).toContain("const tabs: Tab[] = ['advisor','stats'")
     expect(workspace).toContain('requestedTab ?? preferredWorkspaceTab(container)')
     expect(workspace).toContain("return problem ? 'advisor' : 'stats'")
+    expect(workspace).toContain('function OverviewStats')
     expect(workspace).toContain('<LiveStatsPanel')
     expect(workspace).toContain('<ContainerAdvisorPanel')
   })
