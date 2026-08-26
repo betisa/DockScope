@@ -1,6 +1,6 @@
-import { run } from './processRunner'
+import { resolveCommand, run } from './processRunner'
+import { spawn } from 'node:child_process'
 import { promises as fs } from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type {
@@ -475,22 +475,185 @@ function formatFilePermissions(mode: number, type: ContainerFileEntry['type']) {
   return permissions
 }
 
-function fileEntryType(stat: Awaited<ReturnType<typeof fs.lstat>>): ContainerFileEntry['type'] {
-  if (stat.isSymbolicLink()) return 'symlink'
-  if (stat.isDirectory()) return 'directory'
-  if (stat.isFile()) return 'file'
-  return 'other'
+type ContainerArchiveEntry = {
+  name: string
+  type: ContainerFileEntry['type']
+  sizeBytes: number
+  mode: number
+  uid: string
+  gid: string
+  modifiedAt: string
+  symlinkTarget: string
 }
 
-async function stageContainerPath(id: string, target: string) {
-  const temporaryDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'dsm-container-files-'))
-  const payloadPath = path.join(temporaryDirectory, 'payload')
-  const result = await run('docker', ['cp', `${id}:${target}`, payloadPath])
-  if (!result.ok) {
-    await fs.rm(temporaryDirectory, { recursive: true, force: true }).catch(() => undefined)
-    throw new Error(result.stderr || 'Unable to read container filesystem.')
+function tarText(header: Buffer, offset: number, length: number) {
+  return header.subarray(offset, offset + length).toString('utf8').replace(/\0.*$/, '')
+}
+
+function tarNumber(header: Buffer, offset: number, length: number) {
+  const raw = header.subarray(offset, offset + length)
+  if (raw[0] & 0x80) {
+    let value = 0
+    for (const byte of raw) value = value * 256 + byte
+    return value - 2 ** (raw.length * 8 - 1)
   }
-  return { temporaryDirectory, payloadPath }
+  const parsed = Number.parseInt(tarText(header, offset, length).trim().replace(/^0+/, '') || '0', 8)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function parsePaxAttributes(buffer: Buffer) {
+  const attributes: Record<string, string> = {}
+  let offset = 0
+  while (offset < buffer.length) {
+    const separator = buffer.indexOf(0x20, offset)
+    if (separator < 0) break
+    const length = Number.parseInt(buffer.subarray(offset, separator).toString('ascii'), 10)
+    if (!Number.isFinite(length) || length <= 0 || offset + length > buffer.length) break
+    const record = buffer.subarray(separator + 1, offset + length - 1).toString('utf8')
+    const equals = record.indexOf('=')
+    if (equals > 0) attributes[record.slice(0, equals)] = record.slice(equals + 1)
+    offset += length
+  }
+  return attributes
+}
+
+function archiveEntryFromHeader(header: Buffer, pax: Record<string, string>, longName: string) {
+  const typeFlag = String.fromCharCode(header[156] || 0)
+  const prefix = tarText(header, 345, 155)
+  const headerName = [prefix, tarText(header, 0, 100)].filter(Boolean).join('/')
+  const name = pax.path || longName || headerName
+  const type: ContainerFileEntry['type'] =
+    typeFlag === '5' ? 'directory' :
+    typeFlag === '2' ? 'symlink' :
+    typeFlag === '0' || typeFlag === '\0' ? 'file' : 'other'
+  const modifiedSeconds = tarNumber(header, 136, 12)
+  return {
+    name,
+    type,
+    sizeBytes: type === 'file' ? Math.max(0, tarNumber(header, 124, 12)) : 0,
+    mode: tarNumber(header, 100, 8),
+    uid: pax.uid || String(Math.max(0, tarNumber(header, 108, 8))),
+    gid: pax.gid || String(Math.max(0, tarNumber(header, 116, 8))),
+    modifiedAt: modifiedSeconds > 0 ? new Date(modifiedSeconds * 1000).toISOString() : '',
+    symlinkTarget: pax.linkpath || tarText(header, 157, 100)
+  } satisfies ContainerArchiveEntry
+}
+
+function relativeArchivePath(target: string, archiveName: string) {
+  const normalized = archiveName.replace(/^\.\//, '').replace(/\\/g, '/')
+  if (target === '/') return normalized.replace(/^\/+/, '').replace(/\/+$/, '')
+  const prefix = `${target.slice(1).replace(/\/+$/, '')}/`
+  if (normalized === prefix.slice(0, -1)) return ''
+  if (!normalized.startsWith(prefix)) return null
+  return normalized.slice(prefix.length).replace(/\/+$/, '')
+}
+
+async function streamContainerArchive(
+  id: string,
+  target: string,
+  onEntry: (entry: ContainerArchiveEntry, data: Buffer) => void
+) {
+  const resolved = resolveCommand('docker', ['cp', `${id}:${target}`, '-'])
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(resolved.command, resolved.args, {
+      windowsHide: true,
+      shell: false,
+      env: resolved.env ?? process.env
+    })
+    let pending = Buffer.alloc(0)
+    let current: { entry: ContainerArchiveEntry | null; remaining: number; padding: number; special: 'pax' | 'longname' | null; chunks: Buffer[] } | null = null
+    let pax: Record<string, string> = {}
+    let longName = ''
+    let stderr = ''
+    let settled = false
+
+    const finish = (error?: Error) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      if (error) {
+        child.kill()
+        reject(error)
+      } else {
+        resolve()
+      }
+    }
+
+    const consume = () => {
+      while (pending.length) {
+        if (current?.remaining) {
+          const size = Math.min(current.remaining, pending.length)
+          const data = pending.subarray(0, size)
+          pending = pending.subarray(size)
+          current.remaining -= size
+          if (current.special) current.chunks.push(data)
+          else if (current.entry) onEntry(current.entry, data)
+          if (!current.remaining && !current.padding) {
+            if (current.special === 'pax') pax = parsePaxAttributes(Buffer.concat(current.chunks))
+            if (current.special === 'longname') longName = Buffer.concat(current.chunks).toString('utf8').replace(/\0.*$/, '')
+            current = null
+          }
+          continue
+        }
+
+        if (current?.padding) {
+          const size = Math.min(current.padding, pending.length)
+          pending = pending.subarray(size)
+          current.padding -= size
+          if (current.padding) continue
+          if (current.special === 'pax') pax = parsePaxAttributes(Buffer.concat(current.chunks))
+          if (current.special === 'longname') longName = Buffer.concat(current.chunks).toString('utf8').replace(/\0.*$/, '')
+          current = null
+          continue
+        }
+
+        if (pending.length < 512) return
+        const header = pending.subarray(0, 512)
+        pending = pending.subarray(512)
+        if (header.every(byte => byte === 0)) {
+          pending = Buffer.alloc(0)
+          return
+        }
+
+        const typeFlag = String.fromCharCode(header[156] || 0)
+        const special = typeFlag === 'x' || typeFlag === 'g' ? 'pax' : typeFlag === 'L' ? 'longname' : null
+        const rawSize = Math.max(0, tarNumber(header, 124, 12))
+        const entry = special ? null : archiveEntryFromHeader(header, pax, longName)
+        pax = {}
+        longName = ''
+        current = {
+          entry,
+          remaining: rawSize,
+          padding: (512 - (rawSize % 512)) % 512,
+          special,
+          chunks: []
+        }
+        if (!rawSize && !current.padding && current.entry) onEntry(current.entry, Buffer.alloc(0))
+        if (!rawSize && !current.padding) {
+          if (current.special === 'pax') pax = parsePaxAttributes(Buffer.alloc(0))
+          current = null
+        }
+      }
+    }
+
+    const timer = setTimeout(() => finish(new Error('Reading container filesystem timed out.')), 120_000)
+    child.stdout?.on('data', chunk => {
+      if (settled) return
+      try {
+        pending = Buffer.concat([pending, Buffer.from(chunk)])
+        consume()
+      } catch (error) {
+        finish(error instanceof Error ? error : new Error(String(error)))
+      }
+    })
+    child.stderr?.on('data', chunk => { stderr += chunk.toString() })
+    child.on('error', error => finish(error))
+    child.on('close', code => {
+      if (settled) return
+      if (code === 0) finish()
+      else finish(new Error(stderr.trim() || `Docker archive copy failed with exit code ${code ?? -1}.`))
+    })
+  })
 }
 
 function redactDiagnosticEvidence(value: string) {
@@ -1021,32 +1184,25 @@ export const dockerService = {
       .filter(item => target === item.destination || target.startsWith(`${item.destination.replace(/\/+$/, '')}/`))
       .sort((left, right) => right.destination.length - left.destination.length)[0]
 
-    const staged = await stageContainerPath(id, target)
-    let entries: ContainerFileEntry[]
-    try {
-      const rootStat = await fs.lstat(staged.payloadPath)
-      if (!rootStat.isDirectory()) throw new Error('The selected container path is not a directory.')
-
-      const names = await fs.readdir(staged.payloadPath)
-      entries = await Promise.all(names.map(async name => {
-        const localPath = path.join(staged.payloadPath, name)
-        const stat = await fs.lstat(localPath)
-        const type = fileEntryType(stat)
-        return {
-          name,
-          path: target === '/' ? `/${name}` : `${target}/${name}`,
-          type,
-          sizeBytes: stat.isFile() ? stat.size : 0,
-          permissions: formatFilePermissions(stat.mode, type),
-          owner: '',
-          group: '',
-          modifiedAt: stat.mtime.toISOString(),
-          symlinkTarget: type === 'symlink' ? await fs.readlink(localPath).catch(() => '') : ''
-        }
-      }))
-    } finally {
-      await fs.rm(staged.temporaryDirectory, { recursive: true, force: true }).catch(() => undefined)
-    }
+    const entriesByName = new Map<string, ContainerFileEntry>()
+    await streamContainerArchive(id, target, (entry) => {
+      const relative = relativeArchivePath(target, entry.name)
+      if (!relative) return
+      const name = relative.split('/')[0]
+      if (!name || relative !== name) return
+      entriesByName.set(name, {
+        name,
+        path: target === '/' ? `/${name}` : `${target}/${name}`,
+        type: entry.type,
+        sizeBytes: entry.sizeBytes,
+        permissions: formatFilePermissions(entry.mode, entry.type),
+        owner: entry.uid,
+        group: entry.gid,
+        modifiedAt: entry.modifiedAt,
+        symlinkTarget: entry.symlinkTarget
+      })
+    })
+    const entries = Array.from(entriesByName.values())
 
     entries.sort((left, right) => {
       if (left.type === 'directory' && right.type !== 'directory') return -1
@@ -1076,26 +1232,26 @@ export const dockerService = {
       .sort((left, right) => right.destination.length - left.destination.length)[0]
 
     const MAX_TEXT_BYTES = 1_000_000
-    const staged = await stageContainerPath(id, target)
-    let stat: Awaited<ReturnType<typeof fs.lstat>>
-    let content = ''
-    try {
-      stat = await fs.lstat(staged.payloadPath)
-      if (!stat.isFile()) throw new Error('The selected container path is not a regular file.')
-      const handle = await fs.open(staged.payloadPath, 'r')
-      try {
-        const buffer = Buffer.alloc(Math.min(stat.size, MAX_TEXT_BYTES + 1))
-        const result = await handle.read(buffer, 0, buffer.length, 0)
-        content = buffer.subarray(0, result.bytesRead).toString('utf8')
-      } finally {
-        await handle.close()
+    let fileEntry: ContainerArchiveEntry | null = null
+    const chunks: Buffer[] = []
+    let capturedBytes = 0
+    await streamContainerArchive(id, target, (entry, data) => {
+      if (entry.type !== 'file') return
+      if (!fileEntry) fileEntry = entry
+      if (entry !== fileEntry) return
+      if (data.length && capturedBytes < MAX_TEXT_BYTES + 1) {
+        const remaining = MAX_TEXT_BYTES + 1 - capturedBytes
+        const chunk = data.subarray(0, remaining)
+        chunks.push(chunk)
+        capturedBytes += chunk.length
       }
-    } finally {
-      await fs.rm(staged.temporaryDirectory, { recursive: true, force: true }).catch(() => undefined)
-    }
+    })
+    const selectedEntry = fileEntry as ContainerArchiveEntry | null
+    if (!selectedEntry) throw new Error('The selected container path is not a regular file.')
 
-    const sizeBytes = stat!.size
+    const sizeBytes = selectedEntry.sizeBytes
     const truncated = sizeBytes > MAX_TEXT_BYTES
+    const content = Buffer.concat(chunks).toString('utf8')
 
     return {
       path: target,

@@ -26,8 +26,9 @@ describe('Container File Browser', () => {
   })
 
   it('reads the container archive through Docker instead of requiring a shell', () => {
-    expect(service).toContain("run('docker', ['cp', `${id}:${target}`, payloadPath])")
-    expect(service).toContain('fs.readdir(staged.payloadPath)')
+    expect(service).toContain("resolveCommand('docker', ['cp', `${id}:${target}`, '-'])")
+    expect(service).toContain('streamContainerArchive')
+    expect(service).toContain('parsePaxAttributes')
   })
 
   it('bounds text preview and prevents truncated-file save in UI', () => {

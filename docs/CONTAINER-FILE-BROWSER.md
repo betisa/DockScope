@@ -38,13 +38,13 @@ Container paths must:
 
 ## Directory Browse
 
-Directory listing stages the requested path through Docker's container copy API:
+Directory listing reads the requested path from Docker's container archive stream:
 
 ```text
-docker cp <container>:<validated path> <temporary staging directory>
+docker cp <container>:<validated path> -
 ```
 
-The staging directory is owned by Main, removed after metadata extraction, and is never exposed to the Renderer. This works for running and stopped containers and does not require a shell or POSIX utilities inside the image.
+Main parses tar headers in memory and never extracts special files (for example FIFOs or device nodes) to the Windows filesystem. This works for running and stopped containers and does not require a shell or POSIX utilities inside the image.
 
 The script reports:
 

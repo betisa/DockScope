@@ -70,6 +70,16 @@ describe('dockerService using mock Docker CLI', () => {
     expect(containers[0].startedAt).toBe('2026-08-21T11:00:00Z')
   })
 
+  it('reads container archives without extracting special files', async () => {
+    const listing = await dockerService.listContainerFiles('abc123', '/')
+
+    expect(listing.entries.map(entry => entry.name)).toEqual(['bin', 'tmp', 'hello.txt'])
+    expect(listing.entries.find(entry => entry.name === 'hello.txt')).toMatchObject({
+      type: 'file',
+      sizeBytes: 5
+    })
+  })
+
   it('parses Compose service runtime start times', async () => {
     const services = await dockerService.composeServices({
       name: 'sample',

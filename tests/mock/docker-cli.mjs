@@ -3,6 +3,23 @@ const scenario = process.env.DSM_MOCK_SCENARIO ?? 'success'
 const advisorScenario = process.env.DSM_MOCK_ADVISOR ?? 'healthy'
 const key = args.join(' ')
 
+function tarEntry(name, type = '0', content = '') {
+  const body = Buffer.from(content)
+  const header = Buffer.alloc(512)
+  Buffer.from(name).copy(header, 0)
+  Buffer.from('0000644\0').copy(header, 100)
+  Buffer.from('0000000\0').copy(header, 108)
+  Buffer.from('0000000\0').copy(header, 116)
+  Buffer.from(body.length.toString(8).padStart(11, '0') + '\0').copy(header, 124)
+  Buffer.from('15100000000\0').copy(header, 136)
+  header[156] = type.charCodeAt(0)
+  Buffer.from('ustar\0').copy(header, 257)
+  const checksum = Array.from(header).reduce((sum, byte) => sum + byte, 0)
+  Buffer.from(checksum.toString(8).padStart(6, '0') + '\0 ').copy(header, 148)
+  const padding = Buffer.alloc((512 - (body.length % 512)) % 512)
+  return Buffer.concat([header, body, padding])
+}
+
 if (scenario === 'timeout') {
   setTimeout(() => process.exit(0), 60_000)
 } else if (scenario === 'daemon-down') {
@@ -74,6 +91,14 @@ Build cache usage: 9.1GB`)
   console.log('ID          RECLAIMABLE   SIZE')
   console.log('cache-a     true          512MB')
   console.log('Total: 512MB')
+} else if (key === 'cp abc123:/ -') {
+  process.stdout.write(Buffer.concat([
+    tarEntry('bin/', '5'),
+    tarEntry('tmp/', '5'),
+    tarEntry('tmp/clr-debug-pipe-1-702242-in', '6'),
+    tarEntry('hello.txt', '0', 'hello'),
+    Buffer.alloc(1024)
+  ]))
 } else if (key === 'buildx history ls --format json') {
   console.log(JSON.stringify({
     cached_steps:11,
