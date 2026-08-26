@@ -23,9 +23,11 @@ describe('P13.02 Container Diagnostics Advisor', () => {
     expect(service).toContain("OOMKilled=false")
   })
 
-  it('exposes Advisor as the default Container Workspace tab', () => {
+  it('selects Stats for healthy containers and Advisor for runtime failures', () => {
     expect(workspace).toContain("const tabs: Tab[] = ['advisor','overview'")
-    expect(workspace).toContain("initialTab as Tab : 'advisor'")
+    expect(workspace).toContain('requestedTab ?? preferredWorkspaceTab(container)')
+    expect(workspace).toContain("return problem ? 'advisor' : 'stats'")
+    expect(workspace).toContain('<LiveStatsPanel')
     expect(workspace).toContain('<ContainerAdvisorPanel')
   })
 
