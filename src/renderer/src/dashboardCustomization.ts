@@ -2,6 +2,7 @@ export type DashboardWidgetId =
   | 'runtime'
   | 'uptime'
   | 'storage-chart'
+  | 'storage-trend'
   | 'container-states'
   | 'storage-details'
   | 'unhealthy'
@@ -30,6 +31,7 @@ export const DASHBOARD_WIDGETS: DashboardWidgetDefinition[] = [
   { id:'runtime', label:'Runtime summary', description:'Engine, Docker, Compose and active context.', essential:true },
   { id:'uptime', label:'Runtime uptime', description:'Live uptime for running Docker containers and Compose services.' },
   { id:'storage-chart', label:'Storage chart', description:'Allocated versus reclaimable Docker storage.' },
+  { id:'storage-trend', label:'Storage trends', description:'Historical Docker allocation and storage composition over time.' },
   { id:'container-states', label:'Container states', description:'Running, stopped and unhealthy container distribution.' },
   { id:'storage-details', label:'Storage details', description:'Per-category Docker disk usage and reclaimable values.' },
   { id:'unhealthy', label:'Unhealthy containers', description:'Containers currently reporting an unhealthy status.' },
@@ -42,7 +44,19 @@ export const DASHBOARD_WIDGETS: DashboardWidgetDefinition[] = [
 export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
   schemaVersion: 1,
   density: 'comfortable',
-  order: DASHBOARD_WIDGETS.map(widget => widget.id),
+  order: [
+    'runtime',
+    'container-states',
+    'storage-chart',
+    'storage-trend',
+    'unhealthy',
+    'uptime',
+    'recent-alerts',
+    'storage-details',
+    'top-volumes',
+    'recent-builds',
+    'quick-actions'
+  ],
   hidden: []
 }
 

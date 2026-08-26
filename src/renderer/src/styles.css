@@ -2962,6 +2962,59 @@ select {
 .dashboard-widget-wide {
   grid-column:1 / -1;
 }
+.dashboard-runtime-widget {
+  overflow:hidden;
+}
+.dashboard-runtime-widget .metric-grid {
+  margin:0;
+  padding:0 14px 14px;
+}
+.dashboard-runtime-widget .metric {
+  min-height:92px;
+  padding:13px;
+}
+.dashboard-runtime-widget .metric > small {
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.35;
+}
+.dashboard-runtime-meta {
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px 18px;
+  padding:10px 16px;
+  border-top:1px solid var(--border);
+  background:var(--panel-2);
+  color:var(--muted);
+  font-size:10px;
+}
+.dashboard-trend-widget {
+  min-width:0;
+}
+.dashboard-trend-heading {
+  overflow:hidden;
+  margin-bottom:10px;
+}
+.dashboard-trend-heading .section-row {
+  align-items:center;
+}
+.dashboard-trend-heading p {
+  margin:5px 0 0;
+  font-size:11px;
+}
+.dashboard-trend-widget .storage-trend-chart-grid {
+  gap:10px;
+}
+.dashboard-trend-widget .storage-trend-chart-card .chart-heading {
+  padding:12px 14px 9px;
+  margin-bottom:0;
+}
+.dashboard-trend-widget .storage-trend-chart-card .chart-heading h3 {
+  font-size:14px;
+}
+.dashboard-trend-widget .storage-trend-latest {
+  padding:9px 14px;
+}
 .dashboard-widget[draggable="true"] {
   cursor:default;
 }
@@ -3000,6 +3053,9 @@ select {
 }
 .dashboard-customizable.density-compact .metric strong {
   font-size:17px;
+}
+.dashboard-customizable.density-compact .dashboard-runtime-widget .metric {
+  min-height:68px;
 }
 .dashboard-customizable.density-compact .dashboard-chart-card,
 .dashboard-customizable.density-compact .dashboard-list-widget {

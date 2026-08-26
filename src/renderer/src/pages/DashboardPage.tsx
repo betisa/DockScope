@@ -6,11 +6,13 @@ import type {
   DiskUsage,
   EngineStatus,
   OperationalNotification,
+  StorageTrendSeries,
   VolumeIntelligence
 } from '../../../shared/contracts'
 import type { PageId } from '../App'
 import { Badge, EmptyState, InlineAlert, LoadingState } from '../components/ui'
 import { ContainerStateChart, StorageUsageChart } from '../components/DashboardCharts'
+import { StorageTrendCharts, formatBytes } from '../components/StorageTrendCharts'
 import { AppIcon } from '../components/Icon'
 import {
   Alert02Icon,
@@ -36,6 +38,24 @@ import {
   type DashboardWidgetId
 } from '../dashboardCustomization'
 
+const emptyStorageTrend: StorageTrendSeries = {
+  range: '24h',
+  samples: [],
+  summary: {
+    sampleCount: 0,
+    firstCapturedAt: '',
+    lastCapturedAt: '',
+    dockerAllocatedDeltaBytes: 0,
+    vhdxDeltaBytes: 0,
+    peakDockerAllocatedBytes: 0,
+    peakVhdxBytes: 0,
+    latestDockerAllocatedBytes: 0,
+    latestDockerReclaimableBytes: 0,
+    latestVhdxBytes: 0,
+    latestHostDriveFreeBytes: 0
+  }
+}
+
 export function DashboardPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   const [engine, setEngine] = useState<EngineStatus | null>(null)
   const [usage, setUsage] = useState<DiskUsage[]>([])
@@ -44,6 +64,7 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: PageId) => vo
   const [builds, setBuilds] = useState<BuildHistoryRecord[]>([])
   const [volumes, setVolumes] = useState<VolumeIntelligence[]>([])
   const [alerts, setAlerts] = useState<OperationalNotification[]>([])
+  const [storageTrends, setStorageTrends] = useState<StorageTrendSeries>(emptyStorageTrend)
   const [layout, setLayout] = useState<DashboardLayout>(() => ({ ...DEFAULT_DASHBOARD_LAYOUT, order:[...DEFAULT_DASHBOARD_LAYOUT.order], hidden:[] }))
   const [customizerOpen, setCustomizerOpen] = useState(false)
   const [intelligenceOpen, setIntelligenceOpen] = useState(false)
@@ -85,19 +106,22 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: PageId) => vo
         setBuilds([])
         setVolumes([])
         setAlerts([])
+        setStorageTrends(emptyStorageTrend)
         setComposeServices([])
         return
       }
 
-      const [diskUsage, containerRows, buildRows, volumeRows, notificationRows] = await Promise.all([
+      const [diskUsage, containerRows, trendSeries, buildRows, volumeRows, notificationRows] = await Promise.all([
         window.dockerApi.disk.usage(),
         window.dockerApi.containers.list(),
+        window.dockerApi.storage.trends('24h').catch(() => emptyStorageTrend),
         window.dockerApi.buildkit.history().catch(() => []),
         window.dockerApi.volumes.intelligence().catch(() => []),
         window.dockerApi.monitoring.notifications().catch(() => [])
       ])
       setUsage(diskUsage)
       setContainers(containerRows)
+      setStorageTrends(trendSeries)
       setBuilds(buildRows)
       setVolumes(volumeRows)
       setAlerts(notificationRows)
@@ -157,6 +181,12 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: PageId) => vo
   )
   const unreadAlerts = alerts.filter(alert => !alert.read).length
 
+  const storageSummary = useMemo(() => {
+    const allocatedBytes = usage.reduce((total, item) => total + parseHumanBytes(item.size), 0)
+    const reclaimableBytes = usage.reduce((total, item) => total + parseHumanBytes(item.reclaimable), 0)
+    return { allocatedBytes, reclaimableBytes }
+  }, [usage])
+
   const uptimeEntries = useMemo(() => {
     const composeIds = new Set(composeServices.map(service => service.id).filter(Boolean))
     const containerEntries: UptimeEntry[] = containers
@@ -210,12 +240,23 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: PageId) => vo
 
   const widgets: Record<DashboardWidgetId, ReactNode> = {
     runtime: (
-      <div className="metric-grid">
-        <Metric label="Engine" value={engine?.reachable ? 'Running' : loading ? 'Checking…' : 'Unavailable'} tone={engine?.reachable ? 'ok' : 'danger'} />
-        <Metric label="Docker" value={engine?.serverVersion || '—'} />
-        <Metric label="Compose" value={engine?.composeVersion || '—'} />
-        <Metric label="Context" value={engine?.context || '—'} />
-      </div>
+      <section className="card dashboard-runtime-widget">
+        <div className="section-row">
+          <div><div className="eyebrow">Control room</div><h2>Runtime at a glance</h2></div>
+          <Badge tone={diagnosticContainers.length ? 'warn' : 'ok'}>{diagnosticContainers.length ? `${diagnosticContainers.length} need attention` : 'All clear'}</Badge>
+        </div>
+        <div className="metric-grid">
+          <Metric label="Engine" value={engine?.reachable ? 'Running' : loading ? 'Checking…' : 'Unavailable'} tone={engine?.reachable ? 'ok' : 'danger'} />
+          <Metric label="Running workloads" value={String(containerSummary.running)} detail={`${uptimeEntries.length} with uptime`} />
+          <Metric label="Needs attention" value={String(diagnosticContainers.length)} tone={diagnosticContainers.length ? 'danger' : 'ok'} detail="Unhealthy or failed" />
+          <Metric label="Docker storage" value={formatBytes(storageSummary.allocatedBytes)} detail={`${formatBytes(storageSummary.reclaimableBytes)} reclaimable`} />
+        </div>
+        <div className="dashboard-runtime-meta">
+          <span>Docker {engine?.serverVersion || '—'}</span>
+          <span>Compose {engine?.composeVersion || '—'}</span>
+          <span>Context {engine?.context || '—'}</span>
+        </div>
+      </section>
     ),
 
     uptime: (
@@ -253,13 +294,25 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: PageId) => vo
       </div>
     ),
 
+    'storage-trend': (
+      <section className="dashboard-trend-widget">
+        <div className="card dashboard-trend-heading">
+          <div className="section-row">
+            <div><div className="eyebrow">Capacity planning</div><h2>Storage trends</h2><p className="muted">Use the trend to spot growth before it becomes a cleanup incident.</p></div>
+            <DashboardIconLink label="Open Storage Trends" icon={HardDriveIcon} onClick={() => onNavigate('storage')} />
+          </div>
+        </div>
+        <StorageTrendCharts series={storageTrends} />
+      </section>
+    ),
+
     'container-states': (
       <div className="card dashboard-chart-card">
         <ContainerStateChart containers={containers} />
         <div className="chart-summary-strip">
           <button onClick={() => onNavigate('containers')}><span>Running</span><strong>{containerSummary.running}</strong></button>
           <button onClick={() => onNavigate('containers')}><span>Stopped</span><strong>{containerSummary.stopped}</strong></button>
-          <button onClick={() => setIntelligenceOpen(true)}><span>Unhealthy</span><strong>{containerSummary.unhealthy}</strong></button>
+          <button onClick={() => setIntelligenceOpen(true)}><span>Needs attention</span><strong>{diagnosticContainers.length}</strong></button>
         </div>
       </div>
     ),
@@ -473,7 +526,7 @@ function DashboardWidget({
   onDragEnd: () => void
   onDrop: () => void
 }) {
-  const wide = ['runtime', 'storage-details', 'quick-actions'].includes(id)
+  const wide = ['runtime', 'storage-trend', 'storage-details', 'quick-actions'].includes(id)
   return (
     <div
       className={`dashboard-widget ${wide ? 'dashboard-widget-wide' : ''}`}
@@ -533,11 +586,12 @@ function DashboardListWidget({
   )
 }
 
-function Metric({ label, value, tone = 'neutral' }: { label: string; value: string; tone?: 'neutral' | 'ok' | 'danger' }) {
+function Metric({ label, value, tone = 'neutral', detail }: { label: string; value: string; tone?: 'neutral' | 'ok' | 'danger'; detail?: string }) {
   return (
     <div className="metric card">
       <span>{label}</span>
       <strong>{value}</strong>
+      {detail && <small>{detail}</small>}
       {tone !== 'neutral' && <Badge tone={tone}>{tone === 'ok' ? 'Healthy' : 'Attention'}</Badge>}
     </div>
   )
