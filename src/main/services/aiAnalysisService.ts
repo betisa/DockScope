@@ -3,17 +3,22 @@ import type {
   AiBuildErrorAnalysis,
   AiContainerFailureAnalysis,
   AiConnectionTestResult,
+  AiProviderResponseCapture,
   AiProviderSettings,
   AiProviderSettingsUpdate
 } from '../../shared/contracts'
 import { databaseService } from '../database/database'
 import { dockerService } from './dockerService'
+import { extractJson } from './aiJson'
 
 const SETTINGS_KEY = 'ai.openaiCompatible.settings'
 const SECRET_KEY = 'secret.ai.openaiCompatible.apiKey'
 const AI_ANALYSIS_LOG_CHAR_LIMIT = 6_000
 const AI_ANALYSIS_HEALTH_OUTPUT_CHAR_LIMIT = 800
 const AI_ANALYSIS_MAX_OUTPUT_TOKENS = 900
+const AI_ANALYSIS_RETRY_MAX_OUTPUT_TOKENS = 1_600
+const AI_RESPONSE_CAPTURE_KEY = 'ai.lastProviderResponse'
+const AI_RESPONSE_CAPTURE_CHAR_LIMIT = 50_000
 
 const DEFAULT_SETTINGS: Omit<AiProviderSettings, 'apiKeyConfigured'> = {
   enabled: false,
@@ -74,29 +79,6 @@ function redactForAi(value: string) {
     .replace(/([A-Za-z][A-Za-z0-9+.-]*:\/\/)([^:@/\s]+):([^@/\s]+)@/g, '$1***:***@')
     .replace(/\b(AWS_SECRET_ACCESS_KEY|AWS_ACCESS_KEY_ID|AZURE_CLIENT_SECRET|GITHUB_TOKEN|NPM_TOKEN|DOCKER_PASSWORD)=([^\s]+)/gi, '$1=***')
     .replace(/-----BEGIN [^-]+PRIVATE KEY-----[\s\S]*?-----END [^-]+PRIVATE KEY-----/gi, '*** PRIVATE KEY REDACTED ***')
-}
-
-function extractJson(text: string) {
-  const trimmed = String(text ?? '').trim()
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)
-  const sources = [fenced?.[1], trimmed].filter((value): value is string => Boolean(value)).map(value => value.trim())
-
-  for (const source of sources) {
-    const candidates = [source]
-    const start = source.search(/[\[{]/)
-    const end = Math.max(source.lastIndexOf('}'), source.lastIndexOf(']'))
-    if (start >= 0 && end > start) candidates.push(source.slice(start, end + 1))
-
-    for (const candidate of candidates) {
-      for (const normalized of [candidate, candidate.replace(/,\s*([}\]])/g, '$1')]) {
-        try { return JSON.parse(normalized) }
-        catch { /* Try the next bounded candidate. */ }
-      }
-    }
-  }
-
-  const preview = redactForAi(trimmed).replace(/\s+/g, ' ').slice(0, 240)
-  throw new Error(`AI provider returned a response that is not valid JSON.${preview ? ` Preview: ${preview}` : ''}`)
 }
 
 function providerErrorMessage(text: string) {
@@ -290,6 +272,10 @@ class AiAnalysisService {
     }
   }
 
+  async lastResponse(): Promise<AiProviderResponseCapture | null> {
+    return databaseService.getState<AiProviderResponseCapture>(AI_RESPONSE_CAPTURE_KEY)
+  }
+
   async analyzeBuildError(ref: string): Promise<AiBuildErrorAnalysis> {
     await this.initialize()
     if (!this.settings.enabled) throw new Error('AI Error Analysis is disabled in Settings.')
@@ -334,15 +320,16 @@ class AiAnalysisService {
       'Prefer evidence-backed root causes. If evidence is insufficient, say so and lower confidence.',
       'Return JSON only with this exact shape:',
       '{"summary":"string","confidence":"low|medium|high","rootCauses":[{"title":"string","evidence":["string"],"explanation":"string"}],"recommendedActions":[{"priority":"high|medium|low","action":"string","rationale":"string"}]}',
+      'Keep the response concise: at most 3 root causes and 5 recommended actions, with short evidence and explanations. Do not include markdown or commentary.',
       'Recommendations must be safe, actionable, and specific to Docker/BuildKit. Never recommend disabling security controls merely to make a build pass.'
     ].join('\n')
 
-    const rawText = await this.chat(this.settings, apiKey, [
+    const messages = [
       { role:'system', content:system },
       { role:'user', content:JSON.stringify(prompt) }
-    ], Math.min(this.settings.maxOutputTokens, AI_ANALYSIS_MAX_OUTPUT_TOKENS))
+    ] as Array<{ role:'system' | 'user'; content:string }>
 
-    const parsed = extractJson(rawText)
+    const parsed = await this.chatJson(this.settings, apiKey, messages, 'build-error')
     return normalizeAnalysis(parsed, this.settings.model, sanitizedFindings.length, logs.length)
   }
 
@@ -447,16 +434,83 @@ class AiAnalysisService {
       'Never recommend disabling health checks, TLS, authentication, least privilege, or security controls merely to make the container run.',
       'Return JSON only with this exact shape:',
       '{"summary":"string","confidence":"low|medium|high","healthAssessment":{"explanation":"string"},"rootCauses":[{"title":"string","evidence":["string"],"explanation":"string"}],"recommendedActions":[{"priority":"high|medium|low","action":"string","rationale":"string"}]}',
+      'Keep the response concise: at most 3 root causes and 5 recommended actions, with short evidence and explanations. Do not include markdown or commentary.',
       'Prioritize reversible diagnostic actions before destructive or configuration-changing actions.'
     ].join('\n')
 
     const apiKey = await this.readApiKey()
-    const rawText = await this.chat(this.settings, apiKey, [
+    const messages = [
       { role:'system', content:system },
       { role:'user', content:JSON.stringify(prompt) }
-    ], Math.min(this.settings.maxOutputTokens, AI_ANALYSIS_MAX_OUTPUT_TOKENS))
-    const parsed = extractJson(rawText)
+    ] as Array<{ role:'system' | 'user'; content:string }>
+    const parsed = await this.chatJson(this.settings, apiKey, messages, 'container-failure')
     return normalizeContainerAnalysis(parsed, this.settings.model, triggerReasons, health, sanitizedFindings.length, logs.length)
+  }
+
+  private async chatJson(
+    settings: StoredAiSettings,
+    apiKey: string,
+    messages: Array<{ role:'system' | 'user'; content:string }>,
+    analysis: 'build-error' | 'container-failure'
+  ) {
+    const rawText = await this.chat(settings, apiKey, messages, Math.min(settings.maxOutputTokens, AI_ANALYSIS_MAX_OUTPUT_TOKENS))
+    const attempts: AiProviderResponseCapture['attempts'] = [this.captureAttempt(1, rawText)]
+    try {
+      const parsed = extractJson(rawText, redactForAi)
+      await this.persistResponseCapture(settings.model, analysis, attempts)
+      return parsed
+    } catch (firstError) {
+      attempts[0] = this.captureAttempt(1, rawText, firstError)
+      const retryMessages = messages.map((message, index) => index === 0 ? {
+        ...message,
+        content:`${message.content}\nThe previous response was not parseable. Return one compact, complete JSON object only. Do not use markdown, newline characters inside strings, or trailing commas.`
+      } : message)
+      let retryText: string
+      try {
+        retryText = await this.chat(settings, apiKey, retryMessages, Math.min(settings.maxOutputTokens, AI_ANALYSIS_RETRY_MAX_OUTPUT_TOKENS))
+      } catch (retryError) {
+        await this.persistResponseCapture(settings.model, analysis, attempts)
+        throw retryError
+      }
+      attempts.push(this.captureAttempt(2, retryText))
+      try {
+        const parsed = extractJson(retryText, redactForAi)
+        await this.persistResponseCapture(settings.model, analysis, attempts)
+        return parsed
+      } catch (secondError) {
+        attempts[1] = this.captureAttempt(2, retryText, secondError)
+        await this.persistResponseCapture(settings.model, analysis, attempts)
+        throw firstError
+      }
+    }
+  }
+
+  private captureAttempt(attempt: number, response: string, parseError?: unknown): AiProviderResponseCapture['attempts'][number] {
+    const redacted = redactForAi(response)
+    return {
+      attempt,
+      validJson:!parseError,
+      response:redacted.slice(0, AI_RESPONSE_CAPTURE_CHAR_LIMIT),
+      truncated:redacted.length > AI_RESPONSE_CAPTURE_CHAR_LIMIT,
+      ...(parseError ? { parseError:String(parseError).slice(0, 500) } : {})
+    }
+  }
+
+  private async persistResponseCapture(
+    model: string,
+    analysis: 'build-error' | 'container-failure',
+    attempts: AiProviderResponseCapture['attempts']
+  ) {
+    try {
+      await databaseService.setState(AI_RESPONSE_CAPTURE_KEY, {
+        capturedAt:new Date().toISOString(),
+        analysis,
+        model,
+        attempts
+      } satisfies AiProviderResponseCapture)
+    } catch {
+      // Response capture is diagnostic and must not turn a usable AI result into an error.
+    }
   }
 
   private async chat(

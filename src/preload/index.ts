@@ -123,6 +123,7 @@ const api: DockerApi = {
     settings: () => ipcRenderer.invoke('ai:settings'),
     saveSettings: (settings) => ipcRenderer.invoke('ai:save-settings', settings),
     testConnection: (settings) => ipcRenderer.invoke('ai:test-connection', settings),
+    lastResponse: () => ipcRenderer.invoke('ai:last-response'),
     analyzeBuildError: (ref) => ipcRenderer.invoke('ai:build-error-analysis', ref),
     analyzeContainerFailure: (containerId) => ipcRenderer.invoke('ai:container-failure-analysis', containerId)
   },

@@ -470,6 +470,7 @@ export function registerIpc() {
   ipcMain.handle('ai:settings', () => aiAnalysisService.getSettings())
   ipcMain.handle('ai:save-settings', (_, settings) => aiAnalysisService.saveSettings(settings))
   ipcMain.handle('ai:test-connection', (_, settings) => aiAnalysisService.testConnection(settings))
+  ipcMain.handle('ai:last-response', () => aiAnalysisService.lastResponse())
   ipcMain.handle('ai:build-error-analysis', (_, ref) => aiAnalysisService.analyzeBuildError(safeBuildRef(ref)))
   ipcMain.handle('ai:container-failure-analysis', (_, id) => aiAnalysisService.analyzeContainerFailure(safeIds([id])[0]))
 

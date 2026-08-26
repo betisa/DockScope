@@ -759,6 +759,19 @@ export type AiConnectionTestResult = {
   latencyMs: number
 }
 
+export type AiProviderResponseCapture = {
+  capturedAt: string
+  analysis: 'build-error' | 'container-failure'
+  model: string
+  attempts: Array<{
+    attempt: number
+    validJson: boolean
+    response: string
+    truncated: boolean
+    parseError?: string
+  }>
+}
+
 
 export type AiContainerFailureAnalysis = {
   generatedAt: string
@@ -1105,6 +1118,7 @@ export type DockerApi = {
     settings(): Promise<AiProviderSettings>
     saveSettings(settings: AiProviderSettingsUpdate): Promise<AiProviderSettings>
     testConnection(settings?: AiProviderSettingsUpdate): Promise<AiConnectionTestResult>
+    lastResponse(): Promise<AiProviderResponseCapture | null>
     analyzeBuildError(ref: string): Promise<AiBuildErrorAnalysis>
     analyzeContainerFailure(containerId: string): Promise<AiContainerFailureAnalysis>
   }

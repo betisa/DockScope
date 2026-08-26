@@ -17,6 +17,7 @@ describe('BuildKit AI Error Analysis', () => {
     expect(service).toContain('/chat/completions')
     expect(service).toContain('dockerService.buildDiagnostics(ref)')
     expect(preload).toContain("ipcRenderer.invoke('ai:build-error-analysis', ref)")
+    expect(service).toContain("chatJson(this.settings, apiKey, messages, 'build-error')")
   })
   it('encrypts API keys and never returns the raw key',()=>{
     expect(service).toContain('safeStorage.encryptString')
