@@ -43,22 +43,22 @@
     "electron-updater": "6.8.9"
   },
   "devDependencies": {
-    "@types/node": "^24.13.3",
+    "@types/node": "^26.5.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
-    "@vitejs/plugin-react": "^5.2.0",
-    "electron": "43.4.1",
+    "@vitejs/plugin-react": "^6.1.1",
+    "electron": "44.3.0",
     "electron-builder": "^26.15.3",
     "electron-vite": "5.0.0",
-    "typescript": "^5.9.3",
-    "vite": "7.3.6",
-    "vitest": "4.1.11",
-    "@vitest/coverage-v8": "4.1.11",
-    "@testing-library/react": "16.3.2",
+    "typescript": "^7.0.2",
+    "vite": "8.3.0",
+    "vitest": "5.0.0",
+    "@vitest/coverage-v8": "5.0.0",
+    "@testing-library/react": "16.3.3",
     "@testing-library/jest-dom": "7.0.1",
     "jsdom": "30.0.1",
-    "@playwright/test": "1.62.1",
-    "playwright": "1.62.1"
+    "@playwright/test": "1.63.0",
+    "playwright": "1.63.0"
   },
   "build": {
     "appId": "com.dockscope.desktop",
